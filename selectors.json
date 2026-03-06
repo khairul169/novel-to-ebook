@@ -1,0 +1,13 @@
+{
+  "www.webnovel.com": {
+    "title": "header .cha-hd-mn-text > a:first-child",
+    "chapter": "span.j_chapName",
+    "isChapterInTitle": false,
+    "titleSeparator": ":",
+    "content": ".cha-words",
+    "urls": {
+      "nextChapter": "link[rel=\"next\"]",
+      "prevChapter": "link[rel=\"prev\"]"
+    }
+  }
+}
