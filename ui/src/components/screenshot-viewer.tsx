@@ -4,10 +4,12 @@ import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 type Props = {
   screenshot: string;
   elements: any[];
-  selectedSelector: string;
+  selectedSelector?: string | null;
+  includeElements?: string[];
   excludeElements?: string[];
   pageSize: { width: number; height: number };
   isSelecting: boolean;
+  scale?: number;
   onSelect?: ((el: any) => void) | null;
 };
 
@@ -15,6 +17,7 @@ const ScreenshotViewer = ({
   screenshot,
   elements,
   selectedSelector,
+  includeElements,
   excludeElements,
   pageSize,
   isSelecting,
@@ -22,7 +25,7 @@ const ScreenshotViewer = ({
   ...props
 }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null!);
-  const [scale, _setScale] = useState(1);
+  const { scale = 1 } = props;
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(
     null,
   );
@@ -30,8 +33,8 @@ const ScreenshotViewer = ({
   const [hitsAtCursor, setHitsAtCursor] = useState<any[]>([]);
   const [depthIndex, setDepthIndex] = useState(0);
 
-  const VIEWPORT_W = pageSize.width * scale;
-  const VIEWPORT_H = pageSize.height * scale;
+  const VIEWPORT_W = pageSize.width;
+  const VIEWPORT_H = pageSize.height;
 
   // useEffect(() => {
   //   if (!containerRef.current) return;
@@ -45,14 +48,36 @@ const ScreenshotViewer = ({
 
   // Filter elements
   const elementList = useMemo(() => {
-    if (!excludeElements?.length) {
-      return elements;
+    if (includeElements && includeElements?.length > 0) {
+      return elements.filter((el) => {
+        return includeElements.some((include) => {
+          if (include.startsWith(".")) {
+            return el.attrs?.class?.includes(include.slice(1));
+          }
+          if (include.startsWith("#")) {
+            return el.attrs?.id?.includes(include.slice(1));
+          }
+          return el.tag === include;
+        });
+      });
     }
 
-    return elements.filter((el) => {
-      return !excludeElements.some((exclude) => el.selector?.includes(exclude));
-    });
-  }, [elements]);
+    if (excludeElements && excludeElements?.length > 0) {
+      return elements.filter((el) => {
+        return !excludeElements.some((exclude) => {
+          if (exclude.startsWith(".")) {
+            return el.attrs?.class?.includes(exclude.slice(1));
+          }
+          if (exclude.startsWith("#")) {
+            return el.attrs?.id?.includes(exclude.slice(1));
+          }
+          return el.tag === exclude;
+        });
+      });
+    }
+
+    return elements;
+  }, [elements, excludeElements, includeElements]);
 
   const getElementsAtPoint = useCallback(
     (clientX: number, clientY: number) => {

@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import ScreenshotViewer from "./components/screenshot-viewer";
-import { cleanHTML, cn, saveAs } from "./lib/utils";
+import { cleanHTML, cn, proxyUrl, saveAs } from "./lib/utils";
 import { Toaster } from "./components/ui/sonner";
 import { Field, FieldLabel } from "./components/ui/field";
 import {
@@ -13,7 +13,11 @@ import {
 import {
   DownloadIcon,
   EyeIcon,
+  ImportIcon,
+  PencilIcon,
+  PlusIcon,
   SquareDashedMousePointerIcon,
+  TrashIcon,
 } from "lucide-react";
 import { toast } from "sonner";
 import { Button } from "./components/ui/button";
@@ -25,6 +29,17 @@ import {
   ResizablePanelGroup,
 } from "./components/ui/resizable";
 import Epub from "@epubkit/epub-gen-memory/bundle";
+import { Separator } from "./components/ui/separator";
+import ImportTOCDialog from "./components/import-toc-dialog";
+import {
+  Dialog,
+  DialogClose,
+  DialogContent,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "./components/ui/dialog";
+import { ofetch } from "ofetch";
 
 const API = "/api";
 
@@ -43,8 +58,11 @@ export default function App() {
     html: string;
   } | null>(null);
 
+  const [chapters, setChapters] = useState<{ title: string; url: string }[]>(
+    [],
+  );
+
   const [contentPreview, setContentPreview] = useState<{
-    chapter: string;
     content: string;
   } | null>(null);
 
@@ -138,44 +156,77 @@ export default function App() {
     if (!pageData) return;
 
     const $ = cheerio.load(pageData.html);
-    const chapter = $(selectors.chapter).text();
-    const content = cleanHTML($(selectors.content).html() || "");
+    let content = cleanHTML($(selectors.content).html() || "");
+
+    if (!content.length) {
+      return toast.error("Cannot extract content! Please check selectors.");
+    }
+
+    const imageRegex = /(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg))/gi;
+    content = content.replace(imageRegex, proxyUrl("$1"));
 
     setContentPreview({
-      chapter,
       content,
     });
   }, [pageData, selectors]);
 
-  const onDownload = useCallback(() => {
-    if (!pageData) return;
+  const onDownload = useCallback(async () => {
+    try {
+      const res = await ofetch("/api/extract", {
+        method: "post",
+        body: { chapters, contentSelector: selectors.content },
+      });
 
-    const $ = cheerio.load(pageData.html);
-    const chapter = $(selectors.chapter).text();
-    const content = cleanHTML($(selectors.content).html() || "");
+      if (res.chapters) {
+        Epub(
+          {
+            title,
+            cover: coverImg,
+            imageTransformer(image) {
+              if (image.url.startsWith(proxyUrl(""))) {
+                return image;
+              }
 
-    const chapters = [
-      {
-        title: chapter,
-        content,
-      },
-    ];
+              image.url = proxyUrl(image.url);
+              return image;
+            },
+            ignoreFailedDownloads: true,
+          },
+          res.chapters,
+        ).then((epub) => {
+          const blob = new Blob([epub], { type: "application/epub+zip" });
+          saveAs(blob, `${title}.epub`);
+        });
+      }
+    } catch (err) {
+      console.error(err);
+    }
+    // const $ = cheerio.load(pageData.html);
+    // const chapter = $(selectors.chapter).text();
+    // const content = cleanHTML($(selectors.content).html() || "");
 
-    Epub(
-      {
-        title,
-        cover: coverImg,
-        imageTransformer(image) {
-          image.url = "https://corsproxy.io/?url=" + image.url;
-          return image;
-        },
-      },
-      chapters,
-    ).then((epub) => {
-      const blob = new Blob([epub], { type: "application/epub+zip" });
-      saveAs(blob, `${title}.epub`);
-    });
-  }, [pageData, selectors, title, coverImg]);
+    // const chapters = [
+    //   {
+    //     title: chapter,
+    //     content,
+    //   },
+    // ];
+
+    // Epub(
+    //   {
+    //     title,
+    //     cover: coverImg,
+    //     imageTransformer(image) {
+    //       image.url = proxyUrl(image.url);
+    //       return image;
+    //     },
+    //   },
+    //   chapters,
+    // ).then((epub) => {
+    //   const blob = new Blob([epub], { type: "application/epub+zip" });
+    //   saveAs(blob, `${title}.epub`);
+    // });
+  }, [selectors, title, coverImg]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -294,9 +345,9 @@ export default function App() {
               <FieldLabel>Cover Image Url</FieldLabel>
               {coverImg?.startsWith("http") && (
                 <img
-                  src={coverImg}
+                  src={proxyUrl(coverImg)}
                   alt="cover"
-                  className="w-auto! h-40 object-contain self-start"
+                  className="w-auto! h-20 object-contain self-start"
                 />
               )}
               <InputGroup>
@@ -314,33 +365,6 @@ export default function App() {
                               setCoverImg(el.attrs?.src || "");
                               setOnSelectFn(null);
                             }
-                          : null;
-                      });
-                    }}
-                  >
-                    <SquareDashedMousePointerIcon />
-                  </InputGroupButton>
-                </InputGroupAddon>
-              </InputGroup>
-            </Field>
-
-            <Field>
-              <FieldLabel>Chapter Name Selector</FieldLabel>
-              <InputGroup>
-                <InputGroupTextarea
-                  placeholder="h1.chapter"
-                  className="min-h-auto"
-                  value={selectors.chapter}
-                  onChange={(e) =>
-                    setSelectors({ ...selectors, chapter: e.target.value })
-                  }
-                />
-                <InputGroupAddon align="inline-end">
-                  <InputGroupButton
-                    onClick={() => {
-                      setOnSelectFn(() => {
-                        return !onSelectFn
-                          ? (el: any) => onPickSelector("chapter", el)
                           : null;
                       });
                     }}
@@ -378,35 +402,81 @@ export default function App() {
               </InputGroup>
             </Field>
 
+            <Separator />
+
+            <div>
+              <Label>Table of Contents</Label>
+              <div className="mt-2 gap-2 flex">
+                <Button variant="outline" title="Add">
+                  <PlusIcon />
+                </Button>
+                <ImportTOCDialog onImport={setChapters}>
+                  <Button variant="outline" title="Import">
+                    <ImportIcon />
+                  </Button>
+                </ImportTOCDialog>
+              </div>
+
+              <div className="space-y-2 mt-2 max-h-55 overflow-y-auto">
+                {chapters.map((chapter) => (
+                  <div className="flex items-center border-b">
+                    <a
+                      href={chapter.url}
+                      target="_blank"
+                      className="flex-1 truncate text-sm"
+                    >
+                      {chapter.title}
+                    </a>
+                    <Button variant="ghost" size="icon-sm">
+                      <PencilIcon />
+                    </Button>
+                    <Button variant="ghost" size="icon-sm">
+                      <TrashIcon />
+                    </Button>
+                  </div>
+                ))}
+              </div>
+            </div>
+
+            <Separator />
+
             <div className="flex items-center gap-2">
               <Button onClick={onPreview} variant="outline">
                 <EyeIcon /> Preview
               </Button>
               <Button
                 onClick={onDownload}
-                disabled={
-                  !pageData ||
-                  !title ||
-                  !selectors.chapter ||
-                  !selectors.content
-                }
+                disabled={!pageData || !title || !selectors.content}
               >
                 <DownloadIcon /> Download
               </Button>
             </div>
 
-            {contentPreview && (
-              <div className="w-full">
-                <Label>Chapter:</Label>
-                <p className="mt-1">{contentPreview.chapter}</p>
+            <Dialog
+              open={!!contentPreview}
+              onOpenChange={(open) => (!open ? setContentPreview(null) : null)}
+            >
+              <DialogContent className="max-w-3xl!">
+                <DialogHeader>
+                  <DialogTitle>Content Preview</DialogTitle>
+                </DialogHeader>
 
-                <Label className="mt-4">Content:</Label>
-                <div
-                  className="prose dark:prose-invert overflow-y-auto w-full max-w-max max-h-100 border p-4 rounded mt-1"
-                  dangerouslySetInnerHTML={{ __html: contentPreview.content }}
-                />
-              </div>
-            )}
+                {contentPreview && (
+                  <div
+                    className="prose dark:prose-invert overflow-y-auto w-full max-w-max max-h-100 border p-4 rounded mt-1"
+                    dangerouslySetInnerHTML={{
+                      __html: contentPreview.content,
+                    }}
+                  />
+                )}
+
+                <DialogFooter>
+                  <Button onClick={() => setContentPreview(null)}>
+                    Cancel
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
           </div>
         </ResizablePanel>
       </ResizablePanelGroup>

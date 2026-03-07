@@ -61,3 +61,8 @@ export function saveAs(blob: Blob, filename: string) {
   link.click();
   URL.revokeObjectURL(url);
 }
+
+export function proxyUrl(url: string) {
+  const baseUrl = window.location.origin;
+  return baseUrl + "/api/proxy/" + url;
+}

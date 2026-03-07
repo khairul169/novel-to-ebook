@@ -26,6 +26,9 @@ importers:
       puppeteer-extra:
         specifier: ^3.3.6
         version: 3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3))
+      puppeteer-extra-plugin-block-resources:
+        specifier: ^2.4.3
+        version: 2.4.3(puppeteer-extra@3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3)))
       puppeteer-extra-plugin-stealth:
         specifier: ^2.11.2
         version: 2.11.2(puppeteer-extra@3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3)))
@@ -1011,6 +1014,15 @@ packages:
   puppeteer-core@24.38.0:
     resolution: {integrity: sha512-zB3S/tksIhgi2gZRndUe07AudBz5SXOB7hqG0kEa9/YXWrGwlVlYm3tZtwKgfRftBzbmLQl5iwHkQQl04n/mWw==}
     engines: {node: '>=18'}
+
+  puppeteer-extra-plugin-block-resources@2.4.3:
+    resolution: {integrity: sha512-WLxkytm3Nn6D+3N8lFMIi9lL9lLA1mTRHZAflR+zDs9/d1oOYVy52pWPaiQaetOObgfHDpPlHBmzHE2Yhr3ZnQ==}
+    engines: {node: '>=8'}
+    peerDependencies:
+      puppeteer-extra: '*'
+    peerDependenciesMeta:
+      puppeteer-extra:
+        optional: true
 
   puppeteer-extra-plugin-stealth@2.11.2:
     resolution: {integrity: sha512-bUemM5XmTj9i2ZerBzsk2AN5is0wHMNE6K0hXBzBXOzP5m5G3Wl0RHhiqKeHToe/uIH8AoZiGhc1tCkLZQPKTQ==}
@@ -2407,6 +2419,16 @@ snapshots:
       - react-native-b4a
       - supports-color
       - utf-8-validate
+
+  puppeteer-extra-plugin-block-resources@2.4.3(puppeteer-extra@3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3))):
+    dependencies:
+      debug: 4.4.3
+      puppeteer-extra-plugin: 3.2.3(puppeteer-extra@3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3)))
+    optionalDependencies:
+      puppeteer-extra: 3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3))
+    transitivePeerDependencies:
+      - playwright-extra
+      - supports-color
 
   puppeteer-extra-plugin-stealth@2.11.2(puppeteer-extra@3.3.6(puppeteer-core@24.38.0)(puppeteer@24.38.0(typescript@5.9.3))):
     dependencies:

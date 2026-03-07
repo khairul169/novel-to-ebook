@@ -1,17 +1,37 @@
 import { Hono } from "hono";
-import { Browser } from "puppeteer";
+import { proxy } from "hono/proxy";
+import { Browser, DEFAULT_INTERCEPT_RESOLUTION_PRIORITY } from "puppeteer";
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
+import BlockResourcesPlugin from "puppeteer-extra-plugin-block-resources";
+import { cleanHTML } from "./utils";
+import * as cheerio from "cheerio";
 
 const app = new Hono();
 
 let browser: Browser | null = null;
+const blockResources = BlockResourcesPlugin({
+  blockedTypes: new Set([
+    "image",
+    "stylesheet",
+    "media",
+    "font",
+    "manifest",
+    "other",
+  ]),
+  interceptResolutionPriority: DEFAULT_INTERCEPT_RESOLUTION_PRIORITY,
+});
 
 async function getBrowser() {
   if (!browser) {
     browser = await puppeteer.use(StealthPlugin()).launch({
       headless: true,
-      args: ["--no-sandbox", "--disable-setuid-sandbox"],
+      args: [
+        "--no-sandbox",
+        "--disable-setuid-sandbox",
+        "--disable-gpu",
+        "--disable-extensions",
+      ],
     });
   }
   return browser;
@@ -101,7 +121,7 @@ app.post("/screenshot", async (c) => {
         }
 
         let depth = 0;
-        while (current && current !== document.body && depth < 6) {
+        while (current && current !== document.body && depth < 10) {
           depth++;
           let seg = current.tagName.toLowerCase();
           if (current.id) {
@@ -124,7 +144,7 @@ app.post("/screenshot", async (c) => {
                     c.classList.contains(current.classList[0]!)),
               )
             : [];
-          if (siblings.length > 1) {
+          if (siblings.length > 1 && parts.length === 0) {
             seg += `:nth-of-type(${siblings.indexOf(current) + 1})`;
           }
           parts.unshift(seg);
@@ -268,12 +288,7 @@ app.post("/screenshot", async (c) => {
         // }
       });
 
-      const mainContent =
-        document.querySelector("main") ||
-        document.querySelector("article") ||
-        document.body;
-
-      return mainContent.outerHTML
+      return document.body.outerHTML
         .replace(/\s+/g, " ")
         .replace(/>\s+</g, "><")
         .trim();
@@ -288,4 +303,56 @@ app.post("/screenshot", async (c) => {
   }
 });
 
-export default app;
+app.post("/extract", async (c) => {
+  const { chapters, contentSelector } = await c.req.json();
+  if (!Array.isArray(chapters) || !chapters.length) {
+    return c.json({ error: "chapters is required" }, 400);
+  }
+  if (!contentSelector) {
+    return c.json({ error: "contentSelector is required" }, 400);
+  }
+
+  const b = await getBrowser();
+  const promises = chapters.map(async (chapter, idx) => {
+    let page;
+    try {
+      page = await b.newPage();
+      blockResources.onPageCreated(page);
+
+      await page.setViewport({ width: 640, height: 480 });
+      await page.goto(chapter.url, {
+        waitUntil: "domcontentloaded",
+        timeout: 30000,
+      });
+
+      const html = await page.evaluate(() => {
+        return document.body.outerHTML
+          .replace(/\s+/g, " ")
+          .replace(/>\s+</g, "><")
+          .trim();
+      });
+      const $ = cheerio.load(html);
+      const content = cleanHTML($(contentSelector).html() || "");
+      chapters[idx].content = content;
+    } catch (err) {
+      console.error(err);
+      chapters[idx].error = (err as Error).message;
+    } finally {
+      if (page) await page.close();
+    }
+  });
+
+  await Promise.all(promises);
+  return c.json({ chapters });
+});
+
+app.get("/proxy/*", async (c) => {
+  const url = new URL(c.req.url);
+  const target = url.pathname.replace("/proxy/", "");
+  return proxy(target);
+});
+
+Bun.serve({
+  fetch: app.fetch,
+  idleTimeout: 255,
+});
