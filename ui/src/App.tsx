@@ -63,6 +63,7 @@ export default function App() {
   >("app/chapters", []);
 
   const [contentPreview, setContentPreview] = useState<{
+    chapter: string | null;
     content: string;
     isVisible: boolean;
   } | null>(null);
@@ -105,8 +106,45 @@ export default function App() {
         width: containerRef.current.offsetWidth,
         // height: containerRef.current.offsetHeight,
         height: 2000,
-        scrollY: 0,
         isFullPage: true,
+        ignoreDuplicates: true,
+        actions: [
+          // {
+          //   type: "click",
+          //   data: {
+          //     selector: "#colorify-pro-load-more-link",
+          //     // waitFor: 3000,
+          //   },
+          //   loopUntil: {
+          //     selector: "#blog-pager > span.no-more.load-more.btn.show",
+          //     visible: true,
+          //     timeout: 3000,
+          //     attempts: 5,
+          //   },
+          // },
+          // {
+          //   type: "input",
+          //   data: {
+          //     selector: "#main-search-wrap > div > form > input",
+          //     text: "one piece\n",
+          //   },
+          // },
+          // {
+          //   type: "wait",
+          //   data: {
+          //     until: "timeout",
+          //     ms: 3000,
+          //   },
+          // },
+          // {
+          //   type: "wait",
+          //   data: {
+          //     until: "selector",
+          //     selector:
+          //       "#manga-reading-nav-head > div > div.select-pagination > div > div.nav-next > a",
+          //   },
+          // },
+        ],
       };
 
       const res = await fetch(`${API}/screenshot`, {
@@ -164,6 +202,13 @@ export default function App() {
     if (!pageData) return;
 
     const $ = cheerio.load(pageData.html);
+    const chapter = selectors.chapter
+      ? $(selectors.chapter)
+          .filter((_, i) => $(i).text().trim().length > 0)
+          .first()
+          .text()
+          .trim()
+      : null;
     let content = cleanHTML($(selectors.content).html() || "");
 
     if (!content.length) {
@@ -173,7 +218,7 @@ export default function App() {
     const imageRegex = /(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg))/gi;
     content = content.replace(imageRegex, proxyUrl("$1"));
 
-    setContentPreview({ content, isVisible: true });
+    setContentPreview({ chapter, content, isVisible: true });
   }, [pageData, selectors]);
 
   const onDownload = useCallback(async () => {
@@ -188,10 +233,12 @@ export default function App() {
 
     for (let i = 0; i < data.length; i++) {
       const chapter = data[i];
+      const progress = Math.round((i / chapters.length) * 100);
+
       try {
         setDownloadProgress({
           status: "Extracting " + chapter.title + "...",
-          progress: Math.round((i / chapters.length) * 100),
+          progress,
         });
         const res = await ofetch("/api/extract", {
           method: "post",
@@ -200,7 +247,24 @@ export default function App() {
         if (!res.content) {
           throw new Error("Cannot extract content: " + chapter.title);
         }
+
+        // setDownloadProgress({
+        //   status: "Translating " + chapter.title + "...",
+        //   progress,
+        // });
+        // const translated = await ofetch("/api/translate", {
+        //   method: "post",
+        //   body: { text: res.content, to: "en" },
+        // });
+
+        // if (!translated.result) {
+        //   throw new Error("Cannot translate content: " + chapter.title);
+        // }
+
+        // data[i].content = translated.result;
+
         data[i].content = res.content;
+
         if (res.chapter) data[i].title = res.chapter;
       } catch (err) {
         error = err as Error;
@@ -530,12 +594,20 @@ export default function App() {
                 </DialogHeader>
 
                 {contentPreview && (
-                  <div
-                    className="prose dark:prose-invert overflow-y-auto w-full max-w-max max-h-100 border p-4 rounded mt-1"
-                    dangerouslySetInnerHTML={{
-                      __html: contentPreview.content,
-                    }}
-                  />
+                  <>
+                    {/* {contentPreview.chapter ? ( */}
+                    <h2 className="text-md">
+                      Chapter Title: {contentPreview.chapter || "-"}
+                    </h2>
+                    {/* ) : null} */}
+
+                    <div
+                      className="prose dark:prose-invert overflow-y-auto w-full max-w-max max-h-100 border p-4 rounded mt-1"
+                      dangerouslySetInnerHTML={{
+                        __html: contentPreview.content,
+                      }}
+                    />
+                  </>
                 )}
 
                 <DialogFooter>

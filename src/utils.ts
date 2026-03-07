@@ -42,6 +42,19 @@ export async function generateSelectors(html: string, followUp?: string) {
   return SelectorSchema.parse(res);
 }
 
+export async function translate(text: string, to = "en") {
+  const response = await ai.models.generateContent({
+    model: "gemini-2.5-flash",
+    contents: `Translate HTML to [${to.toUpperCase()}]:
+    1. No Layout Changes: Keep all HTML tags exactly as they are. Translate only the text content inside.
+    2. Literal Style: Maintain the original sentence structure, tone, and specific idioms. Do not over-localize or change the author's unique voice/pacing.
+    3. No Meta-Talk: Output only the translated HTML. No explanations or notes.
+    Content:\n\n${text}`,
+  });
+
+  return response.text;
+}
+
 export function cleanHTML(html: string) {
   return sanitizeHtml(html, {
     allowedTags: [
@@ -74,4 +87,8 @@ export function cleanHTML(html: string) {
       },
     },
   }).trim();
+}
+
+export async function waitFor(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms));
 }
