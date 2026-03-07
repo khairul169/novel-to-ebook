@@ -1,7 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import ScreenshotViewer from "./components/screenshot-viewer";
 import { cleanHTML, cn, proxyUrl, saveAs } from "./lib/utils";
-import { Toaster } from "./components/ui/sonner";
 import { Field, FieldLabel } from "./components/ui/field";
 import {
   InputGroup,
@@ -33,19 +32,20 @@ import { Separator } from "./components/ui/separator";
 import ImportTOCDialog from "./components/import-toc-dialog";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogFooter,
   DialogHeader,
   DialogTitle,
 } from "./components/ui/dialog";
 import { ofetch } from "ofetch";
+import { usePersistedState } from "./hooks/use-persisted-state";
+import DownloadDialog from "./components/download-dialog";
 
 const API = "/api";
 
 export default function App() {
   const containerRef = useRef<HTMLDivElement>(null!);
-  const [url, setUrl] = useState("");
+  const [url, setUrl] = usePersistedState("app/url", "");
   const [selectedSelector, setSelectedSelector] = useState("");
 
   const [loading, setLoading] = useState(false);
@@ -58,44 +58,46 @@ export default function App() {
     html: string;
   } | null>(null);
 
-  const [chapters, setChapters] = useState<{ title: string; url: string }[]>(
-    [],
-  );
+  const [chapters, setChapters] = usePersistedState<
+    { title: string; url: string }[]
+  >("app/chapters", []);
 
   const [contentPreview, setContentPreview] = useState<{
     content: string;
+    isVisible: boolean;
   } | null>(null);
 
   const [onSelectFn, setOnSelectFn] = useState<((el: any) => void) | null>(
     null,
   );
 
-  const [title, setTitle] = useState("");
-  const [coverImg, setCoverImg] = useState("");
-  const [selectors, setSelectors] = useState<{
+  const [title, setTitle] = usePersistedState("app/title", "");
+  const [coverImg, setCoverImg] = usePersistedState("app/cover", "");
+  const [selectors, setSelectors] = usePersistedState<{
     chapter: string;
     content: string;
     nextChapter: string;
-  }>({
+  }>("app/selectors", {
     chapter: "",
     content: "",
     nextChapter: "",
   });
+  const [downloadProgress, setDownloadProgress] = useState<{
+    status: string;
+    progress: number;
+  } | null>(null);
 
   // const [extractData, setExtractData] = useState(null);
   // const [extractLoading, setExtractLoading] = useState(false);
 
-  const handleLoad = async (e: React.SubmitEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    if (!url.trim()) return;
+  const onLoad = async (siteUrl: string) => {
     setLoading(true);
     setError("");
     setPageData(null);
     setSelectedSelector("");
-    // setExtractData(null);
 
     try {
-      let target = url.trim();
+      let target = siteUrl.trim();
       if (!/^https?:\/\//i.test(target)) target = "https://" + target;
 
       const body = {
@@ -121,6 +123,12 @@ export default function App() {
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLoad = async (e: React.SubmitEvent<HTMLFormElement>) => {
+    e.preventDefault();
+    if (!url.trim()) return;
+    onLoad(url);
   };
 
   // const handleExtract = async () => {
@@ -165,68 +173,75 @@ export default function App() {
     const imageRegex = /(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg))/gi;
     content = content.replace(imageRegex, proxyUrl("$1"));
 
-    setContentPreview({
-      content,
-    });
+    setContentPreview({ content, isVisible: true });
   }, [pageData, selectors]);
 
   const onDownload = useCallback(async () => {
-    try {
-      const res = await ofetch("/api/extract", {
-        method: "post",
-        body: { chapters, contentSelector: selectors.content },
-      });
+    const data = chapters.map((chapter) => ({
+      title: chapter.title,
+      url: chapter.url,
+      content: "",
+    }));
+    let error: Error | null = null;
 
-      if (res.chapters) {
-        Epub(
-          {
-            title,
-            cover: coverImg,
-            imageTransformer(image) {
-              if (image.url.startsWith(proxyUrl(""))) {
-                return image;
-              }
+    setDownloadProgress({ status: "Downloading...", progress: 0 });
 
-              image.url = proxyUrl(image.url);
-              return image;
-            },
-            ignoreFailedDownloads: true,
-          },
-          res.chapters,
-        ).then((epub) => {
-          const blob = new Blob([epub], { type: "application/epub+zip" });
-          saveAs(blob, `${title}.epub`);
+    for (let i = 0; i < data.length; i++) {
+      const chapter = data[i];
+      try {
+        setDownloadProgress({
+          status: "Extracting " + chapter.title + "...",
+          progress: Math.round((i / chapters.length) * 100),
         });
+        const res = await ofetch("/api/extract", {
+          method: "post",
+          body: { url: chapter.url, selectors },
+        });
+        if (!res.content) {
+          throw new Error("Cannot extract content: " + chapter.title);
+        }
+        data[i].content = res.content;
+        if (res.chapter) data[i].title = res.chapter;
+      } catch (err) {
+        error = err as Error;
+        break;
       }
-    } catch (err) {
-      console.error(err);
     }
-    // const $ = cheerio.load(pageData.html);
-    // const chapter = $(selectors.chapter).text();
-    // const content = cleanHTML($(selectors.content).html() || "");
 
-    // const chapters = [
-    //   {
-    //     title: chapter,
-    //     content,
-    //   },
-    // ];
+    if (error) {
+      setDownloadProgress(null);
+      return toast.error(error.message);
+    }
 
-    // Epub(
-    //   {
-    //     title,
-    //     cover: coverImg,
-    //     imageTransformer(image) {
-    //       image.url = proxyUrl(image.url);
-    //       return image;
-    //     },
-    //   },
-    //   chapters,
-    // ).then((epub) => {
-    //   const blob = new Blob([epub], { type: "application/epub+zip" });
-    //   saveAs(blob, `${title}.epub`);
-    // });
-  }, [selectors, title, coverImg]);
+    setDownloadProgress({ status: "Generating E-book...", progress: 100 });
+
+    Epub(
+      {
+        title,
+        cover: coverImg,
+        imageTransformer(image) {
+          if (image.url.startsWith(proxyUrl(""))) {
+            return image;
+          }
+
+          image.url = proxyUrl(image.url);
+          return image;
+        },
+        ignoreFailedDownloads: true,
+      },
+      data.map((chapter) => ({
+        title: chapter.title,
+        content: chapter.content || "Failed to extract content",
+      })),
+    )
+      .then((epub) => {
+        const blob = new Blob([epub], { type: "application/epub+zip" });
+        saveAs(blob, `${title}.epub`);
+      })
+      .finally(() => {
+        setDownloadProgress(null);
+      });
+  }, [selectors, title, coverImg, chapters]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -402,6 +417,33 @@ export default function App() {
               </InputGroup>
             </Field>
 
+            <Field>
+              <FieldLabel>Chapter Title Selector (optional)</FieldLabel>
+              <InputGroup>
+                <InputGroupTextarea
+                  placeholder="h2.chapter"
+                  className="min-h-auto"
+                  value={selectors.chapter}
+                  onChange={(e) =>
+                    setSelectors({ ...selectors, chapter: e.target.value })
+                  }
+                />
+                <InputGroupAddon align="inline-end">
+                  <InputGroupButton
+                    onClick={() => {
+                      setOnSelectFn(() => {
+                        return !onSelectFn
+                          ? (el: any) => onPickSelector("chapter", el)
+                          : null;
+                      });
+                    }}
+                  >
+                    <SquareDashedMousePointerIcon />
+                  </InputGroupButton>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
+
             <Separator />
 
             <div>
@@ -415,13 +457,26 @@ export default function App() {
                     <ImportIcon />
                   </Button>
                 </ImportTOCDialog>
+                <div className="flex-1" />
+                <Button
+                  variant="outline"
+                  size="icon-sm"
+                  onClick={() => confirm("Are you sure?") && setChapters([])}
+                >
+                  <TrashIcon />
+                </Button>
               </div>
 
               <div className="space-y-2 mt-2 max-h-55 overflow-y-auto">
-                {chapters.map((chapter) => (
+                {chapters.map((chapter, idx) => (
                   <div className="flex items-center border-b">
                     <a
                       href={chapter.url}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        setUrl(chapter.url);
+                        onLoad(chapter.url);
+                      }}
                       target="_blank"
                       className="flex-1 truncate text-sm"
                     >
@@ -430,7 +485,13 @@ export default function App() {
                     <Button variant="ghost" size="icon-sm">
                       <PencilIcon />
                     </Button>
-                    <Button variant="ghost" size="icon-sm">
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() =>
+                        setChapters(chapters.filter((_, i) => i !== idx))
+                      }
+                    >
                       <TrashIcon />
                     </Button>
                   </div>
@@ -446,15 +507,22 @@ export default function App() {
               </Button>
               <Button
                 onClick={onDownload}
-                disabled={!pageData || !title || !selectors.content}
+                disabled={!title || !selectors.content || !chapters.length}
               >
                 <DownloadIcon /> Download
               </Button>
             </div>
 
             <Dialog
-              open={!!contentPreview}
-              onOpenChange={(open) => (!open ? setContentPreview(null) : null)}
+              open={contentPreview?.isVisible}
+              onOpenChange={(open) =>
+                !open
+                  ? setContentPreview((prev) => ({
+                      ...prev!,
+                      isVisible: false,
+                    }))
+                  : null
+              }
             >
               <DialogContent className="max-w-3xl!">
                 <DialogHeader>
@@ -481,7 +549,11 @@ export default function App() {
         </ResizablePanel>
       </ResizablePanelGroup>
 
-      <Toaster />
+      <DownloadDialog
+        open={!!downloadProgress}
+        progress={downloadProgress?.progress}
+        status={downloadProgress?.status}
+      />
     </div>
   );
 }

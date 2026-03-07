@@ -304,46 +304,43 @@ app.post("/screenshot", async (c) => {
 });
 
 app.post("/extract", async (c) => {
-  const { chapters, contentSelector } = await c.req.json();
-  if (!Array.isArray(chapters) || !chapters.length) {
-    return c.json({ error: "chapters is required" }, 400);
+  const { url, selectors } = await c.req.json();
+  // if (!Array.isArray(chapters) || !chapters.length) {
+  //   return c.json({ error: "chapters is required" }, 400);
+  // }
+  if (!url) {
+    return c.json({ error: "url is required" }, 400);
   }
-  if (!contentSelector) {
-    return c.json({ error: "contentSelector is required" }, 400);
+  if (!selectors) {
+    return c.json({ error: "selectors is required" }, 400);
   }
 
-  const b = await getBrowser();
-  const promises = chapters.map(async (chapter, idx) => {
-    let page;
-    try {
-      page = await b.newPage();
-      blockResources.onPageCreated(page);
+  // const promises = chapters.map(async (chapter, idx) => {
+  let page;
+  try {
+    const b = await getBrowser();
+    page = await b.newPage();
+    blockResources.onPageCreated(page);
 
-      await page.setViewport({ width: 640, height: 480 });
-      await page.goto(chapter.url, {
-        waitUntil: "domcontentloaded",
-        timeout: 30000,
-      });
+    await page.setViewport({ width: 640, height: 480 });
+    await page.goto(url, {
+      waitUntil: "domcontentloaded",
+      timeout: 30000,
+    });
 
-      const html = await page.evaluate(() => {
-        return document.body.outerHTML
-          .replace(/\s+/g, " ")
-          .replace(/>\s+</g, "><")
-          .trim();
-      });
-      const $ = cheerio.load(html);
-      const content = cleanHTML($(contentSelector).html() || "");
-      chapters[idx].content = content;
-    } catch (err) {
-      console.error(err);
-      chapters[idx].error = (err as Error).message;
-    } finally {
-      if (page) await page.close();
-    }
-  });
-
-  await Promise.all(promises);
-  return c.json({ chapters });
+    const html = await page.evaluate(() => {
+      return document.body.outerHTML.trim();
+    });
+    const $ = cheerio.load(html);
+    const chapter = $(selectors.chapter).first().text().trim();
+    const content = cleanHTML($(selectors.content).html() || "");
+    return c.json({ chapter, content, url, selectors: selectors as any });
+  } catch (err) {
+    console.error(err);
+    return c.json({ error: (err as Error).message });
+  } finally {
+    if (page) await page.close();
+  }
 });
 
 app.get("/proxy/*", async (c) => {
