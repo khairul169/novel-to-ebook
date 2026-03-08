@@ -47,6 +47,7 @@ export default function App() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const [url, setUrl] = usePersistedState("app/url", "");
   const [selectedSelector, setSelectedSelector] = useState("");
+  const [delayChapter, setDelayChapter] = useState(3);
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
@@ -215,8 +216,12 @@ export default function App() {
       return toast.error("Cannot extract content! Please check selectors.");
     }
 
-    const imageRegex = /(https?:\/\/\S+\.(?:jpg|jpeg|png|gif|webp|svg))/gi;
-    content = content.replace(imageRegex, proxyUrl("$1"));
+    content = content
+      .replace(/src="\/\//g, 'src="https://')
+      .replace(
+        /(src=")(https?:\/\/[^"]+)/gi,
+        (_, prefix, url) => prefix + proxyUrl(url),
+      );
 
     setContentPreview({ chapter, content, isVisible: true });
   }, [pageData, selectors]);
@@ -266,10 +271,20 @@ export default function App() {
         data[i].content = res.content;
 
         if (res.chapter) data[i].title = res.chapter;
+
+        setDownloadProgress({
+          status: "Successfully extracted " + chapter.title + "!",
+          progress: Math.round(((i + 1) / chapters.length) * 100),
+        });
       } catch (err) {
         error = err as Error;
         break;
       }
+
+      if (delayChapter)
+        await new Promise((resolve) =>
+          setTimeout(resolve, delayChapter * 1000),
+        );
     }
 
     if (error) {
@@ -286,6 +301,10 @@ export default function App() {
         imageTransformer(image) {
           if (image.url.startsWith(proxyUrl(""))) {
             return image;
+          }
+
+          if (image.url.startsWith("//")) {
+            image.url = "https:" + image.url;
           }
 
           image.url = proxyUrl(image.url);
@@ -305,7 +324,7 @@ export default function App() {
       .finally(() => {
         setDownloadProgress(null);
       });
-  }, [selectors, title, coverImg, chapters]);
+  }, [selectors, title, coverImg, chapters, delayChapter]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
@@ -516,7 +535,9 @@ export default function App() {
                 <Button variant="outline" title="Add">
                   <PlusIcon />
                 </Button>
-                <ImportTOCDialog onImport={setChapters}>
+                <ImportTOCDialog
+                  onImport={(chap) => setChapters((p) => [...p, ...chap])}
+                >
                   <Button variant="outline" title="Import">
                     <ImportIcon />
                   </Button>
@@ -564,6 +585,21 @@ export default function App() {
             </div>
 
             <Separator />
+
+            <Field>
+              <FieldLabel>Delay between chapters</FieldLabel>
+              <InputGroup>
+                <InputGroupInput
+                  placeholder="0"
+                  value={delayChapter}
+                  onChange={(e) => setDelayChapter(Number(e.target.value) || 0)}
+                  type="number"
+                />
+                <InputGroupAddon align="inline-end">
+                  <span>seconds</span>
+                </InputGroupAddon>
+              </InputGroup>
+            </Field>
 
             <div className="flex items-center gap-2">
               <Button onClick={onPreview} variant="outline">

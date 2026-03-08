@@ -27,12 +27,14 @@ export async function getBrowser() {
   if (!browser) {
     browser = await puppeteer.use(StealthPlugin()).launch({
       headless: true,
+      // headless: false,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-gpu",
         "--disable-extensions",
       ],
+      userDataDir: "./browser-data", // Specify a directory path
     });
   }
   return browser;
@@ -109,7 +111,7 @@ export async function execActions(page: Page, actions: Action[]) {
           (sel) => (document.querySelector(sel) as HTMLAnchorElement)?.click(),
           data.selector,
         );
-        if (data.waitFor) await waitFor(data.waitFor);
+        await waitFor(Math.max(data.waitFor || 0, 500));
       });
     }
 
