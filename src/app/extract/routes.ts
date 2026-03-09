@@ -1,6 +1,6 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { cleanHTML, translate } from "../../lib/utils";
+import { cleanHTML, translate, waitFor } from "../../lib/utils";
 import * as cheerio from "cheerio";
 import {
   ActionSchema,
@@ -15,7 +15,9 @@ import type { Page } from "puppeteer";
 import { openApi } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
-import { extractElements, getCleanHTML } from "./utils";
+import { extractContent, extractElements, getCleanHTML } from "./utils";
+import { addTask, getTasks, setTask, taskEvents } from "./context";
+import Epub from "epub-gen";
 
 const routes = new Hono();
 
@@ -125,45 +127,117 @@ routes.post(
   "/",
   openApi({
     tags: ["Extract"],
-    responses: {
-      200: ExtractResponseSchema,
-    },
     request: {
       json: ExtractRequestSchema,
     },
+    responses: {
+      200: ExtractResponseSchema,
+    },
   }),
   async (c) => {
-    const { url, selectors } = c.req.valid("json");
+    const { chapters, selectors, delayChapter, ...body } = c.req.valid("json");
 
-    let page;
-    try {
-      page = await newBrowserPage({ blockResources: true });
+    const task = addTask(async () => {
+      let page;
+      const contents: { title: string; data: string }[] = [];
 
-      await page.setViewport({ width: 640, height: 480 });
-      await page.goto(url, {
-        waitUntil: "domcontentloaded",
-        timeout: 30000,
-      });
+      try {
+        page = await newBrowserPage({ blockResources: true });
+        await page.setViewport({ width: 640, height: 480 });
 
-      const html = await page.evaluate(() => {
-        return document.body.outerHTML.trim();
-      });
-      const $ = cheerio.load(html);
-      const chapter = selectors.chapter
-        ? $(selectors.chapter)
-            .filter((_, i) => $(i).text().trim().length > 0)
-            .first()
-            .text()
-            .trim()
-        : null;
-      const content = cleanHTML($(selectors.content).html() || "");
-      return c.var.res({ chapter, content, url, selectors });
-    } catch (err) {
-      console.error(err);
-      throw err;
-    } finally {
-      if (page) await page.close();
-    }
+        for (let i = 0; i < chapters.length; i++) {
+          const c = chapters[i]!;
+
+          setTask(task.id, {
+            progress: (i / chapters.length) * 100,
+            data: { title: `Extracting "${c.title}"...` },
+          });
+
+          const { chapter, content } = await extractContent(
+            page,
+            c.url,
+            selectors,
+          );
+
+          if (!content) {
+            throw new Error("Cannot extract " + c.title);
+          }
+
+          contents.push({
+            title: chapter || c.title,
+            data: content,
+          });
+
+          setTask(task.id, {
+            progress: (i / chapters.length) * 100,
+            data: { title: `Extracted "${c.title}".` },
+          });
+          await waitFor((delayChapter || 3) * 1000);
+        }
+
+        setTask(task.id, {
+          progress: 100,
+          data: { title: "Generating EPUB..." },
+        });
+
+        await new Epub({
+          title: body.title,
+          author: body.author,
+          cover: body.cover,
+          content: contents,
+          output: "./data/" + body.title + ".epub",
+        }).promise;
+
+        setTask(task.id, {
+          progress: 100,
+          data: { title: "Success!" },
+        });
+      } catch (err) {
+        console.error(err);
+        setTask(task.id, {
+          progress: -1,
+          data: { title: `Error! ${(err as Error).message}` },
+        });
+        throw err;
+      } finally {
+        if (page) await page.close();
+      }
+    });
+
+    return c.var.res({ taskId: task.id });
+  },
+);
+
+routes.get(
+  "/tasks",
+  openApi({
+    tags: ["Extract"],
+    responses: {
+      200: { schema: z.null(), mediaType: "text/event-stream" },
+    },
+  }),
+  async (c) => {
+    return streamSSE(c, async (s) => {
+      const signal = c.req.raw.signal;
+
+      const sendTasks = async () => {
+        s.writeSSE({ event: "tasks", data: JSON.stringify(getTasks()) });
+      };
+
+      await sendTasks();
+      taskEvents.on("change", sendTasks);
+
+      while (!signal.aborted) {
+        await s.writeSSE({
+          event: "ping",
+          data: JSON.stringify({ date: Date.now() }),
+        });
+
+        await waitFor(10000);
+      }
+
+      taskEvents.off("change", sendTasks);
+    });
   },
 );
 

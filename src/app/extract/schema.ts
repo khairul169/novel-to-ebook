@@ -116,15 +116,22 @@ const extractRequestSelectors = z.object(
 );
 
 export const ExtractRequestSchema = z.object({
-  url: z.string().min(1, { message: "url is required" }),
+  title: z.string().min(1, { message: "title is required" }),
+  cover: z.string().optional(),
+  author: z.string().optional(),
+  chapters: z
+    .object({
+      title: z.string().min(1, { message: "title is required" }),
+      url: z.string().min(1, { message: "url is required" }),
+    })
+    .array()
+    .min(1, { message: "at least one chapter is required" }),
   selectors: extractRequestSelectors,
+  delayChapter: z.number().optional(),
 });
 
 export const ExtractResponseSchema = z.object({
-  chapter: z.string().nullable(),
-  content: z.string(),
-  url: z.string(),
-  selectors: extractRequestSelectors,
+  taskId: z.uuidv7(),
 });
 
 export const TranslateRequestSchema = z.object({

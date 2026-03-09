@@ -118,11 +118,18 @@ export interface paths {
             requestBody?: {
                 content: {
                     "application/json": {
-                        url: string;
+                        title: string;
+                        cover?: string;
+                        author?: string;
+                        chapters: {
+                            title: string;
+                            url: string;
+                        }[];
                         selectors: {
                             chapter: string;
                             content: string;
                         };
+                        delayChapter?: number;
                     };
                 };
             };
@@ -134,18 +141,48 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            chapter: string | null;
-                            content: string;
-                            url: string;
-                            selectors: {
-                                chapter: string;
-                                content: string;
-                            };
+                            /** Format: uuid */
+                            taskId: string;
                         };
                     };
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/extract/tasks": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 200 OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "text/event-stream": null;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

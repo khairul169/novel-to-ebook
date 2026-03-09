@@ -1,0 +1,3 @@
+[submodule "ui/src/lib/foliate-js"]
+	path = ui/src/lib/foliate-js
+	url = https://github.com/readest/foliate-js.git

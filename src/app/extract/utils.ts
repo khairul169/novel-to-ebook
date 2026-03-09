@@ -1,4 +1,6 @@
-//
+import { Page } from "puppeteer";
+import * as cheerio from "cheerio";
+import { cleanHTML } from "../../lib/utils";
 
 export function extractElements(
   anchorTextContains = false,
@@ -204,4 +206,28 @@ export function getCleanHTML() {
     .replace(/\s+/g, " ")
     .replace(/>\s+</g, "><")
     .trim();
+}
+
+export async function extractContent(page: Page, url: string, selectors: any) {
+  await page.goto(url, {
+    waitUntil: "domcontentloaded",
+    timeout: 30000,
+  });
+
+  const html = await page.evaluate(() => {
+    return document.body.outerHTML.trim();
+  });
+  const $ = cheerio.load(html);
+  const chapter = selectors.chapter
+    ? $(selectors.chapter)
+        .filter((_, i) => $(i).text().trim().length > 0)
+        .first()
+        .text()
+        .trim()
+    : null;
+  const content = cleanHTML($(selectors.content).html() || "").replace(
+    /src="\/\//g,
+    'src="https://',
+  );
+  return { chapter, content, url, selectors };
 }

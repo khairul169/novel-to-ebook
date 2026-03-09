@@ -92,3 +92,7 @@ export function cleanHTML(html: string) {
 export async function waitFor(ms: number) {
   return new Promise((resolve) => setTimeout(resolve, ms));
 }
+
+export function uuid() {
+  return Bun.randomUUIDv7();
+}

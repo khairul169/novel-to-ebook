@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import ScreenshotViewer from "./components/screenshot-viewer";
-import { cleanHTML, cn, proxyUrl, saveAs } from "../../lib/utils";
+import { cleanHTML, cn, proxyUrl } from "../../lib/utils";
 import { Field, FieldLabel } from "../../components/ui/field";
 import {
   InputGroup,
@@ -27,7 +27,6 @@ import {
   ResizablePanel,
   ResizablePanelGroup,
 } from "../../components/ui/resizable";
-import Epub from "@epubkit/epub-gen-memory/bundle";
 import { Separator } from "../../components/ui/separator";
 import ImportTOCDialog from "./components/import-toc-dialog";
 import {
@@ -41,6 +40,7 @@ import { usePersistedState } from "../../hooks/use-persisted-state";
 import DownloadDialog from "./components/download-dialog";
 import { streamSSE } from "../../lib/sse";
 import api from "../../lib/api";
+import Tasks from "./components/tasks";
 
 export default function ExtractPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
@@ -83,7 +83,7 @@ export default function ExtractPage() {
     content: "",
     nextChapter: "",
   });
-  const [downloadProgress, setDownloadProgress] = useState<{
+  const [downloadProgress, _setDownloadProgress] = useState<{
     status: string;
     progress: number;
   } | null>(null);
@@ -169,106 +169,23 @@ export default function ExtractPage() {
   }, [pageData, selectors]);
 
   const onDownload = useCallback(async () => {
-    const data = chapters.map((chapter) => ({
-      title: chapter.title,
-      url: chapter.url,
-      content: "",
-    }));
-    let error: Error | null = null;
-
-    setDownloadProgress({ status: "Downloading...", progress: 0 });
-
-    for (let i = 0; i < data.length; i++) {
-      const chapter = data[i];
-      const progress = Math.round((i / chapters.length) * 100);
-
-      try {
-        setDownloadProgress({
-          status: "Extracting " + chapter.title + "...",
-          progress,
-        });
-        const { data: res } = await api.POST("/extract", {
-          body: { url: chapter.url, selectors },
-        });
-        if (!res?.content) {
-          throw new Error("Cannot extract content: " + chapter.title);
-        }
-
-        // setDownloadProgress({
-        //   status: "Translating " + chapter.title + "...",
-        //   progress,
-        // });
-        // const translated = await ofetch("/api/translate", {
-        //   method: "post",
-        //   body: { text: res.content, to: "en" },
-        // });
-
-        // if (!translated.result) {
-        //   throw new Error("Cannot translate content: " + chapter.title);
-        // }
-
-        // data[i].content = translated.result;
-
-        data[i].content = res.content;
-
-        if (res.chapter) data[i].title = res.chapter;
-
-        setDownloadProgress({
-          status: "Successfully extracted " + chapter.title + "!",
-          progress: Math.round(((i + 1) / chapters.length) * 100),
-        });
-      } catch (err) {
-        error = err as Error;
-        break;
-      }
-
-      if (delayChapter)
-        await new Promise((resolve) =>
-          setTimeout(resolve, delayChapter * 1000),
-        );
-    }
-
-    if (error) {
-      setDownloadProgress(null);
-      return toast.error(error.message);
-    }
-
-    setDownloadProgress({ status: "Generating E-book...", progress: 100 });
-
-    Epub(
-      {
-        title,
-        cover: coverImg,
-        imageTransformer(image) {
-          if (image.url.startsWith(proxyUrl(""))) {
-            return image;
-          }
-
-          if (image.url.startsWith("//")) {
-            image.url = "https:" + image.url;
-          }
-
-          image.url = proxyUrl(image.url);
-          return image;
-        },
-        ignoreFailedDownloads: true,
-      },
-      data.map((chapter) => ({
-        title: chapter.title,
-        content: chapter.content || "Failed to extract content",
-      })),
-    )
-      .then((epub) => {
-        const blob = new Blob([epub], { type: "application/epub+zip" });
-        saveAs(blob, `${title}.epub`);
-      })
-      .finally(() => {
-        setDownloadProgress(null);
-      });
+    const body = {
+      title,
+      cover: coverImg,
+      author: "Storvi",
+      chapters,
+      selectors,
+      delayChapter,
+    };
+    await api.POST("/extract", {
+      body,
+    });
   }, [selectors, title, coverImg, chapters, delayChapter]);
 
   return (
     <div className="flex h-screen flex-col overflow-hidden">
+      <Tasks />
+
       <header className="z-10 flex h-15 shrink-0 items-center gap-6 border-b border-zinc-800 bg-zinc-900 px-6">
         <div className="flex shrink-0 items-center gap-2.5">
           <span className="font-mono text-[15px] font-bold tracking-[-0.5px] text-cyan-400">
