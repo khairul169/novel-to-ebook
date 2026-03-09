@@ -13,6 +13,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Get web snapshot and elements */
         post: {
             parameters: {
                 query?: never;
@@ -108,6 +109,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Queue extract content from web */
         post: {
             parameters: {
                 query?: never;
@@ -161,6 +163,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
+        /** Get extract tasks */
         get: {
             parameters: {
                 query?: never;
@@ -198,6 +201,7 @@ export interface paths {
         };
         get?: never;
         put?: never;
+        /** Translate content */
         post: {
             parameters: {
                 query?: never;
@@ -227,6 +231,138 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** List library */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 200 OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": {
+                            key: string;
+                            name: string;
+                            path: string;
+                            fullPath: string;
+                            isDirectory: boolean;
+                            /**
+                             * @example {
+                             *       "title": "Your title here",
+                             *       "creator": "Hingle McCringleberry",
+                             *       "creatorFileAs": "Hingle McCringleberry",
+                             *       "language": "en",
+                             *       "role": "aut",
+                             *       "dcterms:modified": "2011-01-01T12:00:00Z",
+                             *       "cover": "cover.jpg"
+                             *     }
+                             */
+                            metadata?: {
+                                [key: string]: string;
+                            };
+                        }[];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/get": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get library file */
+        get: {
+            parameters: {
+                query: {
+                    key: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 200 OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/epub+zip": unknown;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/cover.jpeg": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get library cover */
+        get: {
+            parameters: {
+                query: {
+                    key: string;
+                };
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description 200 OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "image/jpeg": unknown;
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;

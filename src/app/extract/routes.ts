@@ -19,12 +19,14 @@ import { extractContent, extractElements, getCleanHTML } from "./utils";
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
 
-const routes = new Hono();
+const router = new Hono();
 
 // Get web snapshot and elements
-routes.post(
+router.post(
   "/snapshot",
   openApi({
+    tags: ["Extract"],
+    summary: "Get web snapshot and elements",
     request: {
       json: SnapshotRequestSchema,
     },
@@ -123,10 +125,11 @@ routes.post(
 );
 
 // Extract content from web
-routes.post(
+router.post(
   "/",
   openApi({
     tags: ["Extract"],
+    summary: "Queue extract content from web",
     request: {
       json: ExtractRequestSchema,
     },
@@ -208,10 +211,11 @@ routes.post(
   },
 );
 
-routes.get(
+router.get(
   "/tasks",
   openApi({
     tags: ["Extract"],
+    summary: "Get extract tasks",
     responses: {
       200: { schema: z.null(), mediaType: "text/event-stream" },
     },
@@ -242,10 +246,11 @@ routes.get(
 );
 
 // Translate content
-routes.post(
+router.post(
   "/translate",
   openApi({
     tags: ["Extract"],
+    summary: "Translate content",
     request: {
       json: TranslateRequestSchema,
     },
@@ -264,4 +269,4 @@ routes.post(
   },
 );
 
-export default routes;
+export default router;

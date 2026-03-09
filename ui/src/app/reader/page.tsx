@@ -1,5 +1,7 @@
-import React, { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { BookDoc, FoliateView } from "./lib/types.js";
+import { useSearchParams } from "react-router";
+import { API_URL } from "@/lib/api.js";
 
 type ReaderStyles = {
   spacing: number;
@@ -87,6 +89,8 @@ export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<FoliateView | null>(null);
   const [_cover, setCover] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const bookKey = searchParams.get("book") || "";
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (!viewRef.current) return;
@@ -169,16 +173,39 @@ export default function ReaderPage() {
     view.renderer.next();
   };
 
-  const onChange = (
-    e: React.ChangeEvent<HTMLInputElement, HTMLInputElement>,
-  ) => {
-    const file = e.target.files?.[0];
-    if (file) openDoc(file);
-  };
+  // const onChange = (
+  //   e: React.ChangeEvent<HTMLInputElement, HTMLInputElement>,
+  // ) => {
+  //   const file = e.target.files?.[0];
+  //   if (file) openDoc(file);
+  // };
+
+  const loadingRef = useRef(false);
+
+  useEffect(() => {
+    const fetchBook = async () => {
+      const res = await fetch(API_URL + "/library/get?key=" + bookKey);
+      if (!res.ok) throw new Error(res.statusText);
+
+      const blob = await res.blob();
+      const disposition = res.headers.get("content-disposition");
+      const filename = disposition
+        ? disposition.split("filename=")[1]?.replace(/"/g, "")
+        : "book.epub";
+      openDoc(new File([blob], filename));
+    };
+
+    if (!loadingRef.current) {
+      loadingRef.current = true;
+      fetchBook().finally(() => {
+        loadingRef.current = false;
+      });
+    }
+  }, [bookKey]);
 
   return (
     <div ref={containerRef}>
-      <input type="file" onChange={onChange} />
+      {/* <input type="file" onChange={onChange} /> */}
     </div>
   );
 }

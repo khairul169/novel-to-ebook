@@ -1,8 +1,11 @@
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
-import extract from "./app/extract/routes";
 import { createOpenApiDocument } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
+import { Scalar } from "@scalar/hono-api-reference";
+
+import extract from "./app/extract/routes";
+import library from "./app/library/routes";
 
 const app = new Hono();
 
@@ -25,6 +28,7 @@ app.onError((error, c) => {
 
 // App routes
 app.route("/extract", extract);
+app.route("/library", library);
 
 // CORS Proxy
 app.get("/proxy/*", async (c) => {
@@ -35,15 +39,30 @@ app.get("/proxy/*", async (c) => {
 
 // API docs
 if (process.env.NODE_ENV !== "production") {
-  createOpenApiDocument(app, {
-    info: {
-      title: "Storvi API",
-      version: "1.0.0",
+  createOpenApiDocument(
+    app,
+    {
+      info: {
+        title: "Storvi API",
+        version: "1.0.0",
+      },
     },
-  });
+    { routeName: "openapi.json" },
+  );
+  app.get(
+    "/doc",
+    Scalar({
+      url: "/openapi.json",
+      defaultHttpClient: { targetKey: "node", clientKey: "fetch" },
+    }),
+  );
 }
+
+const PORT = process.env.PORT || 3000;
+console.log(`Listening on http://localhost:${PORT}`);
 
 Bun.serve({
   fetch: app.fetch,
   idleTimeout: 255,
+  development: process.env.NODE_ENV !== "production",
 });
