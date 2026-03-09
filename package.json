@@ -1,5 +1,5 @@
 {
-  "name": "novel-to-ebook",
+  "name": "storvi",
   "module": "src/index.ts",
   "type": "module",
   "private": true,
@@ -21,6 +21,7 @@
     "cheerio": "^1.2.0",
     "epub-gen": "^0.1.0",
     "hono": "^4.12.5",
+    "hono-zod-openapi": "^1.1.1",
     "puppeteer": "^24.38.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-block-resources": "^2.4.3",

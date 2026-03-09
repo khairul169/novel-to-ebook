@@ -1,371 +1,47 @@
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
-import { cleanHTML, translate, waitFor } from "./utils";
-import * as cheerio from "cheerio";
-import { ActionSchema } from "./schema";
-import { execActions, newBrowserPage } from "./browser";
-import { streamSSE } from "hono/streaming";
-import type { Page } from "puppeteer";
+import extract from "./app/extract/routes";
+import { createOpenApiDocument } from "hono-zod-openapi";
+import { HTTPException } from "hono/http-exception";
 
 const app = new Hono();
 
-app.post("/screenshot", async (c) => {
-  const {
-    url,
-    width,
-    height,
-    isFullPage = false,
-    actions,
-    anchorTextContains = false,
-    ignoreDuplicates = false,
-  } = await c.req.json();
+app.onError((error, c) => {
+  let message = error.message;
+  let status = 500;
+  let code: string | undefined = undefined;
 
-  return streamSSE(c, async (s) => {
-    if (!url) {
-      s.writeSSE({ event: "error", data: "url is required" });
-      return;
-    }
+  if (error instanceof HTTPException) {
+    message = error.message;
+    status = error.status;
+  }
 
-    let page: Page | null = null;
+  if ("code" in error) {
+    code = error.code as string;
+  }
 
-    try {
-      page = await newBrowserPage();
-
-      const pageSize = {
-        width: Number(width) || 1280,
-        height: Number(height) || 800,
-      };
-
-      await page.setViewport(pageSize);
-      await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-
-      const sendScreenshot = async (quality = 20, fullPage = false) => {
-        if (!page) return;
-
-        const fullPageSize = await page.evaluate(() => ({
-          width: document.documentElement.scrollWidth,
-          height: document.documentElement.scrollHeight,
-        }));
-        pageSize.height = Math.min(fullPageSize.height, pageSize.height, 2400);
-
-        if (fullPage) {
-          pageSize.height = fullPageSize.height;
-        }
-
-        const screenshot = await page.screenshot({
-          encoding: "base64",
-          type: "jpeg",
-          quality,
-          fullPage,
-        });
-        await s.writeSSE({
-          event: "screenshot",
-          data: JSON.stringify({
-            img: screenshot,
-            width: pageSize.width,
-            height: pageSize.height,
-          }),
-        });
-      };
-
-      let ssInterval: NodeJS.Timeout | null = null;
-
-      if (actions) {
-        await sendScreenshot();
-
-        ssInterval = setInterval(() => sendScreenshot(), 250);
-        const acts = ActionSchema.array().parse(actions);
-        await execActions(page, acts);
-      }
-
-      ssInterval && clearInterval(ssInterval);
-      await sendScreenshot(70, isFullPage);
-
-      // Extract element tree for selector building
-      const elements = await page.evaluate(
-        (anchorTextContains, ignoreDuplicates) => {
-          const result: any[] = [];
-          const seen = new Set();
-
-          function getElementsWithText(text: string) {
-            return Array.from(document.querySelectorAll("*")).filter((el) => {
-              const isMatch =
-                el.textContent.trim() === text.trim() &&
-                el.textContent.length < 30;
-              if (!isMatch) return false;
-
-              const hasChildMatch = Array.from(el.children).some(
-                (child) => child.textContent.trim() === text.trim(),
-              );
-              return !hasChildMatch;
-            });
-          }
-
-          function getSelector(el: HTMLElement) {
-            const parts = [];
-            let current: HTMLElement | null = el;
-
-            if (
-              anchorTextContains &&
-              current.tagName.toLowerCase() === "a" &&
-              current instanceof HTMLAnchorElement &&
-              current.href &&
-              current.textContent.length > 0 &&
-              current.textContent.length < 30 &&
-              getElementsWithText(current.textContent).length === 1
-            ) {
-              return `${current.tagName.toLowerCase()}:contains("${current.textContent.trim()}")`;
-            }
-
-            let depth = 0;
-            while (current && current !== document.body && depth < 10) {
-              depth++;
-              let seg = current.tagName.toLowerCase();
-              if (current.id) {
-                seg += `#${current.id}`;
-                parts.unshift(seg);
-                break;
-              }
-              const classes = Array.from(current.classList)
-                .filter((c) => {
-                  return !c.match(/^\d/) && c.length < 24 && !c.match(/\d{6,}/);
-                })
-                .slice(0, 2)
-                .join(".");
-              if (classes) seg += `.${classes}`;
-              const siblings = current.parentElement
-                ? Array.from(current.parentElement.children).filter(
-                    (c) =>
-                      c.tagName === current?.tagName &&
-                      (!current.classList.length ||
-                        c.classList.contains(current.classList[0]!)),
-                  )
-                : [];
-              if (siblings.length > 1 && parts.length === 0) {
-                seg += `:nth-of-type(${siblings.indexOf(current) + 1})`;
-              }
-              parts.unshift(seg);
-              current = current.parentElement;
-            }
-
-            // return parts.join(" > ");
-            return parts.join(" ");
-          }
-
-          const tags = [
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "p",
-            "b",
-            "strong",
-            "em",
-            "i",
-            "u",
-            "a",
-            "img",
-            "ul",
-            "ol",
-            "li",
-            "table",
-            "tr",
-            "td",
-            "th",
-            "div",
-            "section",
-            "article",
-            "header",
-            "footer",
-            "nav",
-            "main",
-            "aside",
-            "button",
-            "input",
-            // "form",
-            "span",
-            "figure",
-            "blockquote",
-            "select",
-          ];
-
-          for (const tag of tags) {
-            document.querySelectorAll(tag).forEach((el: any) => {
-              const rect = el.getBoundingClientRect();
-              // if (rect.width < 5 || rect.height < 5) return;
-              const selector = getSelector(el);
-
-              if (ignoreDuplicates) {
-                if (seen.has(selector)) return;
-                seen.add(selector);
-              }
-
-              // exclude if parent tags is not in the list of allowed tags
-              // let parent = el.parentElement;
-              // let depth = 0;
-              // while (parent && parent !== document.body && depth < 3) {
-              //   if (!tags.includes(parent.tagName.toLowerCase())) return;
-              //   parent = parent.parentElement;
-              //   depth += 1;
-              // }
-
-              // exclude if element is hidden or not visible
-              const style = window.getComputedStyle(el);
-              if (
-                style.display === "none" ||
-                style.visibility === "hidden" ||
-                Number(style.opacity) < 0.01
-              )
-                return;
-
-              const text =
-                el.innerText?.trim().slice(0, 80) ||
-                el.getAttribute("alt") ||
-                el.getAttribute("src") ||
-                "";
-
-              result.push({
-                tag: el.tagName.toLowerCase(),
-                selector,
-                text,
-                box: {
-                  x: Math.round(rect.x),
-                  y: Math.round(rect.y),
-                  w: Math.round(rect.width),
-                  h: Math.round(rect.height),
-                },
-                attrs: {
-                  id: el.id || undefined,
-                  class: el.className?.slice?.(0, 60) || undefined,
-                  href: el.href || undefined,
-                  src: el.src || undefined,
-                },
-              });
-            });
-          }
-
-          return result;
-        },
-        anchorTextContains,
-        ignoreDuplicates,
-      );
-
-      const html = await page.evaluate(() => {
-        const tagsToRemove = [
-          "script",
-          "style",
-          "svg",
-          "noscript",
-          "iframe",
-          "video",
-        ];
-        tagsToRemove.forEach((tag) => {
-          document.querySelectorAll(tag).forEach((el) => el.remove());
-        });
-
-        const allowedAttributes = [
-          "id",
-          "class",
-          "itemprop",
-          "href",
-          "src",
-          "alt",
-          "title",
-          "role",
-          "rel",
-        ];
-
-        // Remove unnecessary attributes
-        document.body.querySelectorAll("*").forEach((el) => {
-          Array.from(el.attributes).forEach((attr) => {
-            if (!allowedAttributes.includes(attr.name)) {
-              el.removeAttribute(attr.name);
-            }
-          });
-        });
-
-        return document.body.outerHTML
-          .replace(/\s+/g, " ")
-          .replace(/>\s+</g, "><")
-          .trim();
-      });
-
-      s.writeSSE({
-        event: "result",
-        data: JSON.stringify({ elements, url, pageSize, html }),
-      });
-    } catch (err) {
-      s.writeSSE({ event: "error", data: (err as Error).message });
-    } finally {
-      if (page) await page.close();
-    }
-  });
+  return c.json({ error: true, message, code }, status as never);
 });
 
-app.post("/extract", async (c) => {
-  const { url, selectors } = await c.req.json();
-  // if (!Array.isArray(chapters) || !chapters.length) {
-  //   return c.json({ error: "chapters is required" }, 400);
-  // }
-  if (!url) {
-    return c.json({ error: "url is required" }, 400);
-  }
-  if (!selectors) {
-    return c.json({ error: "selectors is required" }, 400);
-  }
+// App routes
+app.route("/extract", extract);
 
-  // const promises = chapters.map(async (chapter, idx) => {
-  let page;
-  try {
-    page = await newBrowserPage({ blockResources: true });
-
-    await page.setViewport({ width: 640, height: 480 });
-    await page.goto(url, {
-      waitUntil: "domcontentloaded",
-      timeout: 30000,
-    });
-
-    const html = await page.evaluate(() => {
-      return document.body.outerHTML.trim();
-    });
-    const $ = cheerio.load(html);
-    const chapter = selectors.chapter
-      ? $(selectors.chapter)
-          .filter((_, i) => $(i).text().trim().length > 0)
-          .first()
-          .text()
-          .trim()
-      : null;
-    const content = cleanHTML($(selectors.content).html() || "");
-    return c.json({ chapter, content, url, selectors: selectors as any });
-  } catch (err) {
-    console.error(err);
-    return c.json({ error: (err as Error).message });
-  } finally {
-    if (page) await page.close();
-  }
-});
-
-app.post("/translate", async (c) => {
-  const { text, to = "en" } = await c.req.json();
-  if (!text) {
-    return c.json({ error: "text is required" }, 400);
-  }
-
-  try {
-    const result = await translate(text, to);
-    return c.json({ result });
-  } catch (err) {
-    console.error(err);
-    return c.json({ error: (err as Error).message });
-  }
-});
-
+// CORS Proxy
 app.get("/proxy/*", async (c) => {
   const url = new URL(c.req.url);
   const target = url.pathname.replace("/proxy/", "");
   return proxy(target);
 });
+
+// API docs
+if (process.env.NODE_ENV !== "production") {
+  createOpenApiDocument(app, {
+    info: {
+      title: "Storvi API",
+      version: "1.0.0",
+    },
+  });
+}
 
 Bun.serve({
   fetch: app.fetch,

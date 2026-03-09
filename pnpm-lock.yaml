@@ -23,6 +23,9 @@ importers:
       hono:
         specifier: ^4.12.5
         version: 4.12.5
+      hono-zod-openapi:
+        specifier: ^1.1.1
+        version: 1.1.1(hono@4.12.5)(zod@4.3.6)
       puppeteer:
         specifier: ^24.38.0
         version: 24.38.0(typescript@5.9.3)
@@ -93,6 +96,12 @@ packages:
     peerDependenciesMeta:
       '@modelcontextprotocol/sdk':
         optional: true
+
+  '@hono/zod-validator@0.7.6':
+    resolution: {integrity: sha512-Io1B6d011Gj1KknV4rXYz4le5+5EubcWEU/speUjuw9XMMIaP3n78yXLhjd2A3PXaXaUwEAluOiAyLqhBEJgsw==}
+    peerDependencies:
+      hono: '>=3.9.0'
+      zod: ^3.25.0 || ^4.0.0
 
   '@isaacs/cliui@8.0.2':
     resolution: {integrity: sha512-O8jcjabXaleOG9DQ0+ARXWZBTfnP4WNAqzuiJK7ll44AmxGKv/J2M4TPjxjY3znBCfvBXFzucm1twdyFybFqEA==}
@@ -699,6 +708,13 @@ packages:
   hasown@2.0.2:
     resolution: {integrity: sha512-0hJU9SCPvmMzIBdZFqNPXWa6dqh7WdH0cII9y+CyS8rG3nL48Bclra9HmKhVVUHyPWNH5Y7xDwAB7bfgSjkUMQ==}
     engines: {node: '>= 0.4'}
+
+  hono-zod-openapi@1.1.1:
+    resolution: {integrity: sha512-L8ZRSxOYnPYxEmj2O1MgRKzEpa0nW3ThZyczwvq6kc9q2pwAyys5qKkEi2AYRfIMgu6eXptgM9QaoqZbZJeYfw==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      hono: ^4.8.0
+      zod: ^4.0.0
 
   hono@4.12.5:
     resolution: {integrity: sha512-3qq+FUBtlTHhtYxbxheZgY8NIFnkkC/MR8u5TTsr7YZ3wixryQ3cCwn3iZbg8p8B88iDBBAYSfZDS75t8MN7Vg==}
@@ -1402,6 +1418,12 @@ packages:
     resolution: {integrity: sha512-EkXc2JGcKhO5N5aZ7TmuNo45budRaFGHOmz24wtJR7znbNqDPmdZtUauKX6et8KAVseAMBOyWJqEpXcHTBsh7Q==}
     engines: {node: '>= 6'}
 
+  zod-openapi@5.4.6:
+    resolution: {integrity: sha512-P2jsOOBAq/6hCwUsMCjUATZ8szkMsV5VAwZENfyxp2Hc/XPJQpVwAgevWZc65xZauCwWB9LAn7zYeiCJFAEL+A==}
+    engines: {node: '>=20'}
+    peerDependencies:
+      zod: ^3.25.74 || ^4.0.0
+
   zod@3.25.76:
     resolution: {integrity: sha512-gzUt/qt81nXsFGKIFcC3YnfEAx5NkunCfnDlvuBSSFS02bcXu4Lmea0AFIUwbLWxWPx3d9p8S5QoaujKcNQxcQ==}
 
@@ -1455,6 +1477,11 @@ snapshots:
       - bufferutil
       - supports-color
       - utf-8-validate
+
+  '@hono/zod-validator@0.7.6(hono@4.12.5)(zod@4.3.6)':
+    dependencies:
+      hono: 4.12.5
+      zod: 4.3.6
 
   '@isaacs/cliui@8.0.2':
     dependencies:
@@ -2140,6 +2167,13 @@ snapshots:
   hasown@2.0.2:
     dependencies:
       function-bind: 1.1.2
+
+  hono-zod-openapi@1.1.1(hono@4.12.5)(zod@4.3.6):
+    dependencies:
+      '@hono/zod-validator': 0.7.6(hono@4.12.5)(zod@4.3.6)
+      hono: 4.12.5
+      zod: 4.3.6
+      zod-openapi: 5.4.6(zod@4.3.6)
 
   hono@4.12.5: {}
 
@@ -2890,6 +2924,10 @@ snapshots:
       archiver-utils: 2.1.0
       compress-commons: 2.1.1
       readable-stream: 3.6.2
+
+  zod-openapi@5.4.6(zod@4.3.6):
+    dependencies:
+      zod: 4.3.6
 
   zod@3.25.76: {}
 

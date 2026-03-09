@@ -8,31 +8,30 @@ import {
   DialogHeader,
   DialogTitle,
   DialogTrigger,
-} from "./ui/dialog";
+} from "@/components/ui/dialog";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
   InputGroupTextarea,
-} from "./ui/input-group";
-import { Button } from "./ui/button";
+} from "@/components/ui/input-group";
+import { Button } from "@/components/ui/button";
 import ScreenshotViewer from "./screenshot-viewer";
 import { useMutation } from "@tanstack/react-query";
-import { Field, FieldLabel } from "./ui/field";
+import { Field, FieldLabel } from "@/components/ui/field";
 import { SearchIcon, SquareDashedMousePointerIcon, XIcon } from "lucide-react";
 import * as cheerio from "cheerio";
-import { Input } from "./ui/input";
-import { Checkbox } from "./ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Checkbox } from "@/components/ui/checkbox";
 import { usePersistedState } from "@/hooks/use-persisted-state";
-import { Separator } from "./ui/separator";
-import { Label } from "./ui/label";
+import { Separator } from "@/components/ui/separator";
+import { Label } from "@/components/ui/label";
 import BrowserActionsInput, {
   type BrowserAction,
 } from "./browser-actions-input";
 import { searchChapters } from "@/lib/utils";
 import { streamSSE } from "@/lib/sse";
-import { toast } from "sonner";
 
 type Props = React.ComponentProps<typeof Dialog> & {
   onImport: (chapters: { title: string; url: string }[]) => void;
@@ -93,8 +92,7 @@ export default function ImportTOCDialog({
       if (!/^https?:\/\//i.test(target)) target = "https://" + target;
 
       let res: any = null;
-      await streamSSE("/api/screenshot", {
-        method: "POST",
+      await streamSSE("/extract/snapshot", "post", {
         body: {
           url: target,
           width: previewRef.current.offsetWidth,

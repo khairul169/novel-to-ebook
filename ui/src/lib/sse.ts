@@ -1,19 +1,37 @@
-import { ofetch, type FetchOptions } from "ofetch";
+import type { paths } from "./api.schema";
+import { API_URL, type JsonBody } from "./api";
 
-export async function streamSSE(
-  url: string,
-  options: FetchOptions<"json", any> & {
+export async function streamSSE<
+  TKey extends keyof paths,
+  TMethod extends "get" | "post" | "put" | "delete" = "get",
+>(
+  url: TKey,
+  method?: TMethod,
+  options?: Omit<RequestInit, "body"> & {
+    body?: JsonBody<TKey, TMethod>;
     onMessage: (event: string, data: any) => void;
   },
 ) {
-  const { onMessage, ...opts } = options;
+  const { onMessage, body, headers, ...opts } = options || {};
 
-  const stream = await ofetch(url, opts);
-  const reader = stream.getReader();
+  const res = await fetch(API_URL + url, {
+    ...opts,
+    method,
+    body: typeof body === "object" ? JSON.stringify(body) : body,
+    headers: {
+      "Content-Type": typeof body === "object" ? "application/json" : undefined,
+      ...(headers || {}),
+    },
+    responseType: "stream",
+  } as never);
+  if (!res.ok) throw new Error(res.statusText);
+
+  const reader = res.body!.getReader();
   const decoder = new TextDecoder();
   let buffer = "";
+  let error: Error | null = null;
 
-  while (true) {
+  while (!error) {
     const { done, value } = await reader.read();
     if (done) break;
 
@@ -24,9 +42,18 @@ export async function streamSSE(
 
     for (const part of parts) {
       const { event, data } = parseSSE(part);
-      onMessage(event, data);
+
+      if (event === "error" && "message" in data) {
+        error = new Error(data.message);
+        reader.cancel();
+        break;
+      }
+
+      onMessage?.(event, data);
     }
   }
+
+  if (error) throw error;
 }
 
 function parseSSE(chunk: string) {

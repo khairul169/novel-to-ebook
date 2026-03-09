@@ -1,13 +1,13 @@
 import React from "react";
-import type { Action } from "backend/schema";
+import type { Action } from "backend/app/extract/schema";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "./ui/select";
-import { Button } from "./ui/button";
+} from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
 import {
   ClockIcon,
   PlusIcon,
@@ -15,13 +15,13 @@ import {
   TextIcon,
   TrashIcon,
 } from "lucide-react";
-import { Checkbox } from "./ui/checkbox";
+import { Checkbox } from "@/components/ui/checkbox";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
-} from "./ui/input-group";
+} from "@/components/ui/input-group";
 
 export type BrowserAction = Action & {
   enabled: boolean;

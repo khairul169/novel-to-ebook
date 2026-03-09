@@ -1,5 +1,5 @@
 import fs from "fs/promises";
-import type { Selector } from "./schema";
+import type { Selector } from "../app/extract/schema";
 
 export const KNOWN_SELECTORS_PATH = "./selectors.json";
 

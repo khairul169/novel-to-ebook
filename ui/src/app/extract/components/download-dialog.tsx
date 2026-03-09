@@ -6,10 +6,10 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "./ui/dialog";
-import { Button } from "./ui/button";
-import { Progress } from "./ui/progress";
-import { Field, FieldLabel } from "./ui/field";
+} from "@/components/ui/dialog";
+import { Button } from "@/components/ui/button";
+import { Progress } from "@/components/ui/progress";
+import { Field, FieldLabel } from "@/components/ui/field";
 
 type Props = React.ComponentProps<typeof Dialog> & {
   status?: string | null;

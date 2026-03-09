@@ -94,3 +94,44 @@ export const ActionSchema = z.union([
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
+
+///////////////////////////
+
+export const SnapshotRequestSchema = z.object({
+  url: z.string().min(1, { message: "url is required" }),
+  width: z.number().optional(),
+  height: z.number().optional(),
+  isFullPage: z.boolean().optional(),
+  actions: z.array(ActionSchema).optional(),
+  anchorTextContains: z.boolean().optional(),
+  ignoreDuplicates: z.boolean().optional(),
+});
+
+const extractRequestSelectors = z.object(
+  {
+    chapter: z.string().min(1, { message: "chapter selector is required" }),
+    content: z.string().min(1, { message: "content selector is required" }),
+  },
+  { error: "selectors is required" },
+);
+
+export const ExtractRequestSchema = z.object({
+  url: z.string().min(1, { message: "url is required" }),
+  selectors: extractRequestSelectors,
+});
+
+export const ExtractResponseSchema = z.object({
+  chapter: z.string().nullable(),
+  content: z.string(),
+  url: z.string(),
+  selectors: extractRequestSelectors,
+});
+
+export const TranslateRequestSchema = z.object({
+  text: z.string().min(1, { message: "text is required" }),
+  to: z.string().optional(),
+});
+
+export const TranslateResponseSchema = z.object({
+  result: z.string(),
+});
