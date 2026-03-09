@@ -130,9 +130,9 @@ export async function execActions(
           throw new Error("element not found");
         }
 
-        // await page.evaluate((sel) => {
-        //   (document.querySelector(sel) as HTMLElement)?.scrollIntoView();
-        // }, data.selector);
+        await page.evaluate((sel) => {
+          (document.querySelector(sel) as HTMLElement)?.scrollIntoView();
+        }, data.selector);
 
         const box = await el.boundingBox();
         if (!box) {

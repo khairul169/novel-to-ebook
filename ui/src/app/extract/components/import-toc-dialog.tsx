@@ -32,6 +32,7 @@ import BrowserActionsInput, {
 } from "./browser-actions-input";
 import { searchChapters } from "@/lib/utils";
 import { streamSSE } from "@/lib/sse";
+import { toast } from "sonner";
 
 type Props = React.ComponentProps<typeof Dialog> & {
   onImport: (chapters: { title: string; url: string }[]) => void;
@@ -111,6 +112,7 @@ export default function ImportTOCDialog({
       });
       return res;
     },
+    onError: (err) => toast.error(err.message),
   });
 
   const onSelect = (type: "link" | "title", el: any) => {

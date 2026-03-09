@@ -1,0 +1,116 @@
+export type BookMetadata = {
+  identifier: string;
+  title: string;
+  language: string;
+  publisher: string;
+  published: string;
+  modified: string;
+  rights: string;
+  author: {
+    name: string;
+    sortAs: string;
+  };
+};
+
+export type BookDoc = {
+  metadata: BookMetadata;
+  sections: any;
+  toc?: any;
+  getCover?: () => Promise<Blob>;
+};
+
+export type RangeAnchor = (doc: Document) => Range;
+
+export interface FoliateView extends HTMLElement {
+  open: (book: BookDoc) => Promise<void>;
+  close: () => void;
+  init: (options: { lastLocation: string }) => void;
+  goTo: (href: string) => void;
+  goToFraction: (fraction: number) => void;
+  prev: (distance?: number) => void;
+  next: (distance?: number) => void;
+  pan: (dx: number, dy: number) => void;
+  isOverflowX: () => boolean;
+  isOverflowY: () => boolean;
+  goLeft: () => void;
+  goRight: () => void;
+  getCFI: (index: number, range: Range) => string;
+  getCFIProgress: (cfi: string) => Promise<{
+    fraction: number;
+    section: { current: number; total: number };
+    location: { current: number; next: number; total: number };
+    time: { section: number; total: number };
+  } | null>;
+  resolveCFI: (cfi: string) => { index: number; anchor: RangeAnchor };
+  resolveNavigation: (cfiOrHrefOrIndex: string | number) => {
+    index: number;
+    anchor?: RangeAnchor;
+  };
+  // addAnnotation: (
+  //   note: BookNote & { value?: string },
+  //   remove?: boolean,
+  // ) => { index: number; label: string };
+  // search: (
+  //   config: BookSearchConfig,
+  // ) => AsyncGenerator<BookSearchResult | string, void, void>;
+  // clearSearch: () => void;
+  // select: (target: string | number | { fraction: number }) => void;
+  // deselect: () => void;
+  // initTTS: (
+  //   granularity?: TTSGranularity,
+  //   nodeFilter?: (node: Node) => number,
+  //   highlight?: (range: Range) => void,
+  // ) => Promise<void>;
+  book: BookDoc;
+  // tts: TTS | null;
+  // isFixedLayout: boolean;
+  // language: {
+  //   locale?: LocaleWithTextInfo;
+  //   isCJK?: boolean;
+  //   canonical?: string;
+  //   direction?: string;
+  // };
+  history: {
+    canGoBack: boolean;
+    canGoForward: boolean;
+    back: () => void;
+    forward: () => void;
+    clear: () => void;
+  };
+  renderer: {
+    scrolled?: boolean;
+    scrollLocked: boolean;
+    size: number; // current page height
+    viewSize: number; // whole document view height
+    start: number;
+    end: number;
+    page: number;
+    pages: number;
+    atStart: boolean;
+    atEnd: boolean;
+    containerPosition: number;
+    sideProp: "width" | "height";
+    setAttribute: (name: string, value: string | number) => void;
+    removeAttribute: (name: string) => void;
+    next: () => Promise<void>;
+    prev: () => Promise<void>;
+    nextSection?: () => Promise<void>;
+    prevSection?: () => Promise<void>;
+    goTo?: (params: { index: number; anchor?: number | RangeAnchor }) => void;
+    setStyles?: (css: string) => void;
+    getContents: () => { doc: Document; index?: number; overlayer?: unknown }[];
+    scrollToAnchor?: (anchor: number | Range) => void;
+    addEventListener: (
+      type: string,
+      listener: EventListener,
+      option?: AddEventListenerOptions,
+    ) => void;
+    removeEventListener: (type: string, listener: EventListener) => void;
+    showLoupe?: (
+      x: number,
+      y: number,
+      options: { isVertical: boolean; color: string; radius: number },
+    ) => void;
+    hideLoupe?: () => void;
+  };
+}

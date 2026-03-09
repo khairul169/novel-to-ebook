@@ -62,6 +62,7 @@ routes.post(
           );
 
           if (fullPage) {
+            await page.evaluate(() => window.scrollTo(0, 0));
             pageSize.height = fullPageSize.height;
           }
 
@@ -108,7 +109,7 @@ routes.post(
           data: JSON.stringify({ elements, url, pageSize, html }),
         });
       } catch (err) {
-        s.writeSSE({
+        await s.writeSSE({
           event: "error",
           data: JSON.stringify({ message: (err as Error).message }),
         });
