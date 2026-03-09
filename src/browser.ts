@@ -7,10 +7,13 @@ import {
 import puppeteer from "puppeteer-extra";
 import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import BlockResourcesPlugin from "puppeteer-extra-plugin-block-resources";
+import { PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
 import { waitFor } from "./utils";
 import { type Action, type ActionWithLoopUntil } from "./schema";
 
 let browser: Browser | null = null;
+let blocker: PuppeteerBlocker | null = null;
+
 const blockResources = BlockResourcesPlugin({
   blockedTypes: new Set([
     "image",
@@ -36,13 +39,16 @@ export async function getBrowser() {
       ],
       userDataDir: "./browser-data", // Specify a directory path
     });
+    blocker = await PuppeteerBlocker.fromPrebuiltAdsAndTracking(fetch);
   }
+
   return browser;
 }
 
 export async function newBrowserPage(opt?: { blockResources?: boolean }) {
   const browser = await getBrowser();
   const page = await browser.newPage();
+  blocker?.enableBlockingInPage(page);
 
   if (opt?.blockResources) {
     blockResources.onPageCreated(page);
@@ -101,35 +107,56 @@ async function loopUntil(
   }
 }
 
-export async function execActions(page: Page, actions: Action[]) {
+export async function execActions(
+  page: Page,
+  actions: Action[],
+  opts?: { callback?: (action: Action) => Promise<void> },
+) {
   for (const action of actions) {
     const { type, data } = action;
 
     if (type === "click") {
       await loopUntil(page, action, async () => {
-        await page.evaluate(
-          (sel) => (document.querySelector(sel) as HTMLAnchorElement)?.click(),
-          data.selector,
-        );
+        // await page.click(data.selector);
+
+        // await page.evaluate((sel) => {
+        //   const el = document.querySelector(sel) as HTMLAnchorElement;
+        //   // el?.scrollIntoView();
+        //   el?.click();
+        // }, data.selector);
+
+        const el = await page.$(data.selector);
+        if (!el) {
+          throw new Error("element not found");
+        }
+
+        // await page.evaluate((sel) => {
+        //   (document.querySelector(sel) as HTMLElement)?.scrollIntoView();
+        // }, data.selector);
+
+        const box = await el.boundingBox();
+        if (!box) {
+          throw new Error("element not found");
+        }
+
+        await page.mouse.click(box.x + box.width / 2, box.y + box.height / 2);
+
         await waitFor(Math.max(data.waitFor || 0, 500));
       });
     }
 
     if (type === "scroll") {
       await loopUntil(page, action, async () => {
-        return page.evaluate(
+        await page.evaluate(
           (data) => window.scrollTo(data.x || 0, data.y || 0),
           data,
         );
+        await waitFor(500);
       });
     }
 
     if (type === "wait") {
       switch (data.until) {
-        case "timeout":
-          await waitFor(data.ms || 1000);
-          break;
-
         case "domcontentloaded":
         case "networkidle0":
         case "networkidle2":
@@ -149,13 +176,19 @@ export async function execActions(page: Page, actions: Action[]) {
           });
           break;
 
+        case "timeout":
         default:
-          throw new Error(`Unknown wait until: ${data.until}`);
+          if (data.ms) await waitFor(data.ms);
+          else throw new Error(`Unknown wait until: ${data.until}`);
       }
     }
 
     if (type === "input") {
       await page.type(data.selector, data.text);
+    }
+
+    if (opts?.callback) {
+      await opts.callback(action);
     }
   }
 }

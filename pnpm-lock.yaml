@@ -8,6 +8,9 @@ importers:
 
   .:
     dependencies:
+      '@ghostery/adblocker-puppeteer':
+        specifier: ^2.14.1
+        version: 2.14.1(puppeteer@24.38.0(typescript@5.9.3))
       '@google/genai':
         specifier: ^1.44.0
         version: 1.44.0
@@ -65,6 +68,23 @@ packages:
     resolution: {integrity: sha512-qSs4ifwzKJSV39ucNjsvc6WVHs6b7S03sOh2OcHF9UHfVPqWWALUsNUVzhSBiItjRZoLHx7nIarVjqKVusUZ1Q==}
     engines: {node: '>=6.9.0'}
 
+  '@ghostery/adblocker-content@2.14.1':
+    resolution: {integrity: sha512-hDE6RAL9xgQonJQiK1knOHy527PEwlAuvKaha4snE0XO6Vmtk0HThce1M2JFVRxGayWR3nTxoWbvEfGWXU7O/A==}
+
+  '@ghostery/adblocker-extended-selectors@2.14.1':
+    resolution: {integrity: sha512-3RARO2ukDrfwDqVEMD+HKZIwsM9QjjII+U1zqxhLXZ0dZRHjbtUHlZCsokqfjZ1JAa3ZVKcZrF0nZv5SA2LgyA==}
+
+  '@ghostery/adblocker-puppeteer@2.14.1':
+    resolution: {integrity: sha512-P7SuAWDkDMriOhtLrSMZIERV+kxc9ieFUhfkSEgXHtqieLizsNUeys9ltvtU7m75XX+RTvg6JY8DmwX0HIF/LQ==}
+    peerDependencies:
+      puppeteer: '>5'
+
+  '@ghostery/adblocker@2.14.1':
+    resolution: {integrity: sha512-/cQTMJRd4/7zpgFHWqe+9wqiRPGTy+BhqfkxplvejPgq8d6spBjC6bSJV61rVHJZw5F4KOO5ReKOvuguaKG28A==}
+
+  '@ghostery/url-parser@1.3.1':
+    resolution: {integrity: sha512-QKqGi+7aDQ4RcyHyCwgEk6B9vWnsBP4Q7htaN0zPJV3ATqTKEQDtSTb9c/AN586oJUDs24YXKcwFYwNweY/YjQ==}
+
   '@google/genai@1.44.0':
     resolution: {integrity: sha512-kRt9ZtuXmz+tLlcNntN/VV4LRdpl6ZOu5B1KbfNgfR65db15O6sUQcwnwLka8sT/V6qysD93fWrgJHF2L7dA9A==}
     engines: {node: '>=20.0.0'}
@@ -116,6 +136,24 @@ packages:
     resolution: {integrity: sha512-46BZJYJjc/WwmKjsvDFykHtXrtomsCIrwYQPOP7VfMJoZY2bsDF9oROBABR3paDjDcmkUye1Pb1BqdcdiipaWA==}
     engines: {node: '>=18'}
     hasBin: true
+
+  '@remusao/guess-url-type@2.1.0':
+    resolution: {integrity: sha512-zI3dlTUxpjvx2GCxp9nLOSK5yEIqDCpxlAVGwb2Y49RKkS72oeNaxxo+VWS5+XQ5+Mf8Zfp9ZXIlk+G5eoEN8A==}
+
+  '@remusao/small@2.1.0':
+    resolution: {integrity: sha512-Y1kyjZp7JU7dXdyOdxHVNfoTr1XLZJTyQP36/esZUU/WRWq9XY0PV2HsE3CsIHuaTf4pvgWv2pvzvnZ//UHIJQ==}
+
+  '@remusao/smaz-compress@2.2.0':
+    resolution: {integrity: sha512-TXpTPgILRUYOt2rEe0+9PC12xULPvBqeMpmipzB9A7oM4fa9Ztvy9lLYzPTd7tiQEeoNa1pmxihpKfJtsxnM/w==}
+
+  '@remusao/smaz-decompress@2.2.0':
+    resolution: {integrity: sha512-ERAPwxPaA0/yg4hkNU7T2S+lnp9jj1sApcQMtOyROvOQyo+Zuh6Hn/oRcXr8mmjlYzyRaC7E6r3mT1nrdHR6pg==}
+
+  '@remusao/smaz@2.2.0':
+    resolution: {integrity: sha512-eSd3Qs0ELP/e7tU1SI5RWXcCn9KjDgvBY+KtWbL4i2QvvHhJOfdIt4v0AA3S5BbLWAr5dCEC7C4LUfogDm6q/Q==}
+
+  '@remusao/trie@2.1.0':
+    resolution: {integrity: sha512-Er3Q8q0/2OcCJPQYJOPLmCuqO0wu7cav3SPtpjlxSbjFi1x+A1pZkkLD6c9q2rGEkGW/tkrRzfrhNMt8VQjzXg==}
 
   '@tootallnate/quickjs-emscripten@0.23.0':
     resolution: {integrity: sha512-C5Mc6rdnsaJDjO3UpGW/CQTHtCKaYlScZTly4JIu97Jxo/odCiH0ITnDXSJPTOrEKk/ycSZ0AOgTmkDtkOsvIA==}
@@ -1255,6 +1293,12 @@ packages:
   text-decoder@1.2.7:
     resolution: {integrity: sha512-vlLytXkeP4xvEq2otHeJfSQIRyWxo/oZGEbXrtEEF9Hnmrdly59sUbzZ/QgyWuLYHctCHxFF4tRQZNQ9k60ExQ==}
 
+  tldts-core@7.0.25:
+    resolution: {integrity: sha512-ZjCZK0rppSBu7rjHYDYsEaMOIbbT+nWF57hKkv4IUmZWBNrBWBOjIElc0mKRgLM8bm7x/BBlof6t2gi/Oq/Asw==}
+
+  tldts-experimental@7.0.25:
+    resolution: {integrity: sha512-rFB8lPWHAf4II9+Zdlc6dwcJLIe6sqEzndcjfbcv9PdsFTlNYBgRI4y9aJzo7VMHvg/GRaUlFK+qZUyKpcE6zA==}
+
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
@@ -1374,6 +1418,33 @@ snapshots:
 
   '@babel/helper-validator-identifier@7.28.5': {}
 
+  '@ghostery/adblocker-content@2.14.1':
+    dependencies:
+      '@ghostery/adblocker-extended-selectors': 2.14.1
+
+  '@ghostery/adblocker-extended-selectors@2.14.1': {}
+
+  '@ghostery/adblocker-puppeteer@2.14.1(puppeteer@24.38.0(typescript@5.9.3))':
+    dependencies:
+      '@ghostery/adblocker': 2.14.1
+      '@ghostery/adblocker-content': 2.14.1
+      puppeteer: 24.38.0(typescript@5.9.3)
+      tldts-experimental: 7.0.25
+
+  '@ghostery/adblocker@2.14.1':
+    dependencies:
+      '@ghostery/adblocker-content': 2.14.1
+      '@ghostery/adblocker-extended-selectors': 2.14.1
+      '@ghostery/url-parser': 1.3.1
+      '@remusao/guess-url-type': 2.1.0
+      '@remusao/small': 2.1.0
+      '@remusao/smaz': 2.2.0
+      tldts-experimental: 7.0.25
+
+  '@ghostery/url-parser@1.3.1':
+    dependencies:
+      tldts-experimental: 7.0.25
+
   '@google/genai@1.44.0':
     dependencies:
       google-auth-library: 10.6.1
@@ -1434,6 +1505,23 @@ snapshots:
       - bare-buffer
       - react-native-b4a
       - supports-color
+
+  '@remusao/guess-url-type@2.1.0': {}
+
+  '@remusao/small@2.1.0': {}
+
+  '@remusao/smaz-compress@2.2.0':
+    dependencies:
+      '@remusao/trie': 2.1.0
+
+  '@remusao/smaz-decompress@2.2.0': {}
+
+  '@remusao/smaz@2.2.0':
+    dependencies:
+      '@remusao/smaz-compress': 2.2.0
+      '@remusao/smaz-decompress': 2.2.0
+
+  '@remusao/trie@2.1.0': {}
 
   '@tootallnate/quickjs-emscripten@0.23.0': {}
 
@@ -2717,6 +2805,12 @@ snapshots:
       b4a: 1.8.0
     transitivePeerDependencies:
       - react-native-b4a
+
+  tldts-core@7.0.25: {}
+
+  tldts-experimental@7.0.25:
+    dependencies:
+      tldts-core: 7.0.25
 
   tslib@2.8.1: {}
 

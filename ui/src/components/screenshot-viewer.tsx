@@ -2,13 +2,13 @@ import { cn } from "@/lib/utils";
 import { useRef, useState, useCallback, useMemo, useEffect } from "react";
 
 type Props = {
-  screenshot: string;
-  elements: any[];
+  screenshot?: string | null;
+  elements?: any[] | null;
   selectedSelector?: string | null;
   includeElements?: string[];
   excludeElements?: string[];
-  pageSize: { width: number; height: number };
-  isSelecting: boolean;
+  pageSize?: { width: number; height: number } | null;
+  isSelecting?: boolean;
   scale?: number;
   onSelect?: ((el: any) => void) | null;
 };
@@ -33,8 +33,8 @@ const ScreenshotViewer = ({
   const [hitsAtCursor, setHitsAtCursor] = useState<any[]>([]);
   const [depthIndex, setDepthIndex] = useState(0);
 
-  const VIEWPORT_W = pageSize.width;
-  const VIEWPORT_H = pageSize.height;
+  const VIEWPORT_W = pageSize?.width || 1280;
+  const VIEWPORT_H = pageSize?.height || 720;
 
   // useEffect(() => {
   //   if (!containerRef.current) return;
@@ -48,6 +48,8 @@ const ScreenshotViewer = ({
 
   // Filter elements
   const elementList = useMemo(() => {
+    if (!elements) return [];
+
     if (includeElements && includeElements?.length > 0) {
       return elements.filter((el) => {
         return includeElements.some((include) => {
@@ -172,7 +174,12 @@ const ScreenshotViewer = ({
   const selectedEl = elementList.find((el) => el.selector === selectedSelector);
 
   return (
-    <div className="w-full h-full overflow-auto bg-zinc-950">
+    <div
+      className={cn(
+        "w-full h-full bg-slate-200",
+        screenshot ? "overflow-auto" : "overflow-hidden",
+      )}
+    >
       <div
         ref={containerRef}
         className={cn(
@@ -189,14 +196,16 @@ const ScreenshotViewer = ({
         // onWheel={handleWheel}
         {...props}
       >
-        <img
-          src={`data:image/jpeg;base64,${screenshot}`}
-          alt="Page screenshot"
-          draggable={false}
-          className="block h-full w-full select-none"
-        />
+        {screenshot ? (
+          <img
+            src={`data:image/jpeg;base64,${screenshot}`}
+            alt="Page screenshot"
+            draggable={false}
+            className="block h-full w-full select-none"
+          />
+        ) : null}
 
-        {isSelecting && (
+        {elements && elements.length > 0 && isSelecting && (
           <svg
             className="pointer-events-none absolute inset-0 h-full w-full"
             viewBox={`0 0 ${VIEWPORT_W} ${VIEWPORT_H}`}

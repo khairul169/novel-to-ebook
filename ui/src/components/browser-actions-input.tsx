@@ -12,6 +12,7 @@ import {
   ClockIcon,
   PlusIcon,
   SquareDashedMousePointerIcon,
+  TextIcon,
   TrashIcon,
 } from "lucide-react";
 import { Checkbox } from "./ui/checkbox";
@@ -82,7 +83,7 @@ export default function BrowserActionsInput({
                   <SelectItem value="click">Click</SelectItem>
                   <SelectItem value="input">Input</SelectItem>
                   <SelectItem value="scroll">Scroll</SelectItem>
-                  <SelectItem value="Wait">Wait</SelectItem>
+                  <SelectItem value="wait">Wait</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -130,6 +131,112 @@ export default function BrowserActionsInput({
                         data: {
                           ...action.data,
                           waitFor: Number(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <ClockIcon />
+                  </InputGroupAddon>
+                </InputGroup>
+              </div>
+            )}
+
+            {action.type === "input" && (
+              <div className="ml-6 mt-2 space-y-2">
+                <InputGroup>
+                  <InputGroupInput
+                    className="flex-1"
+                    placeholder="Selector"
+                    value={action.data?.selector || ""}
+                    onChange={(e) =>
+                      onValueChange(idx, {
+                        data: { ...action.data, selector: e.target.value },
+                      })
+                    }
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <InputGroupButton
+                      onClick={() => {
+                        setSelectFn("click", (el) => {
+                          onValueChange(idx, {
+                            data: { ...action.data, selector: el.selector },
+                          });
+                          setSelectFn(null);
+                        });
+                      }}
+                    >
+                      <SquareDashedMousePointerIcon />
+                    </InputGroupButton>
+                  </InputGroupAddon>
+                </InputGroup>
+
+                <InputGroup>
+                  <InputGroupInput
+                    className="flex-1"
+                    placeholder="Text"
+                    value={action.data?.text || ""}
+                    onChange={(e) =>
+                      onValueChange(idx, {
+                        data: {
+                          ...action.data,
+                          text: e.target.value,
+                        },
+                      })
+                    }
+                  />
+                  <InputGroupAddon align="inline-end">
+                    <TextIcon />
+                  </InputGroupAddon>
+                </InputGroup>
+              </div>
+            )}
+
+            {action.type === "scroll" && (
+              <div className="ml-6 mt-2 flex items-center gap-2">
+                <InputGroup className="flex-1">
+                  <InputGroupAddon align="inline-start">x</InputGroupAddon>
+                  <InputGroupInput
+                    value={action.data?.x || ""}
+                    onChange={(e) =>
+                      onValueChange(idx, {
+                        data: {
+                          ...action.data,
+                          x: Number(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </InputGroup>
+                <InputGroup className="flex-1">
+                  <InputGroupAddon align="inline-start">y</InputGroupAddon>
+                  <InputGroupInput
+                    value={action.data?.y || ""}
+                    onChange={(e) =>
+                      onValueChange(idx, {
+                        data: {
+                          ...action.data,
+                          y: Number(e.target.value) || 0,
+                        },
+                      })
+                    }
+                  />
+                </InputGroup>
+              </div>
+            )}
+
+            {action.type === "wait" && (
+              <div className="ml-6 mt-2 space-y-2">
+                <InputGroup>
+                  <InputGroupInput
+                    className="flex-1"
+                    placeholder="Delay in ms"
+                    value={action.data?.ms || ""}
+                    onChange={(e) =>
+                      onValueChange(idx, {
+                        data: {
+                          ...action.data,
+                          ms: Number(e.target.value) || 0,
                         },
                       })
                     }

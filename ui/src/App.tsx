@@ -40,6 +40,7 @@ import {
 import { ofetch } from "ofetch";
 import { usePersistedState } from "./hooks/use-persisted-state";
 import DownloadDialog from "./components/download-dialog";
+import { streamSSE } from "./lib/sse";
 
 const API = "/api";
 
@@ -51,8 +52,8 @@ export default function App() {
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
+  const [screenshot, setScreenshot] = useState("");
   const [pageData, setPageData] = useState<{
-    screenshot: string;
     elements: any[];
     url: string;
     pageSize: { width: number; height: number };
@@ -95,6 +96,7 @@ export default function App() {
   const onLoad = async (siteUrl: string) => {
     setLoading(true);
     setError("");
+    setScreenshot("");
     setPageData(null);
     setSelectedSelector("");
 
@@ -105,58 +107,24 @@ export default function App() {
       const body = {
         url: target,
         width: containerRef.current.offsetWidth,
-        // height: containerRef.current.offsetHeight,
-        height: 2000,
         isFullPage: true,
         ignoreDuplicates: true,
-        actions: [
-          // {
-          //   type: "click",
-          //   data: {
-          //     selector: "#colorify-pro-load-more-link",
-          //     // waitFor: 3000,
-          //   },
-          //   loopUntil: {
-          //     selector: "#blog-pager > span.no-more.load-more.btn.show",
-          //     visible: true,
-          //     timeout: 3000,
-          //     attempts: 5,
-          //   },
-          // },
-          // {
-          //   type: "input",
-          //   data: {
-          //     selector: "#main-search-wrap > div > form > input",
-          //     text: "one piece\n",
-          //   },
-          // },
-          // {
-          //   type: "wait",
-          //   data: {
-          //     until: "timeout",
-          //     ms: 3000,
-          //   },
-          // },
-          // {
-          //   type: "wait",
-          //   data: {
-          //     until: "selector",
-          //     selector:
-          //       "#manga-reading-nav-head > div > div.select-pagination > div > div.nav-next > a",
-          //   },
-          // },
-        ],
       };
 
-      const res = await fetch(`${API}/screenshot`, {
+      await streamSSE(API + "/screenshot", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(body),
+        body,
+        onMessage: (event, data) => {
+          if (event === "screenshot") {
+            setScreenshot(data.img);
+          }
+          if (event === "result") {
+            setPageData(data);
+          }
+        },
       });
-      if (!res.ok) throw new Error((await res.json()).error || "Server error");
 
-      const data = await res.json();
-      setPageData(data);
+      // setPageData(data);
     } catch (err) {
       setError((err as Error).message);
     } finally {
@@ -396,7 +364,7 @@ export default function App() {
 
             {pageData && (
               <ScreenshotViewer
-                screenshot={pageData.screenshot}
+                screenshot={screenshot}
                 elements={pageData.elements}
                 selectedSelector={selectedSelector}
                 pageSize={pageData.pageSize}

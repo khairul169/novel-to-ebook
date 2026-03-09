@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -19,7 +19,6 @@ import {
 import { Button } from "./ui/button";
 import ScreenshotViewer from "./screenshot-viewer";
 import { useMutation } from "@tanstack/react-query";
-import { ofetch } from "ofetch";
 import { Field, FieldLabel } from "./ui/field";
 import { SearchIcon, SquareDashedMousePointerIcon, XIcon } from "lucide-react";
 import * as cheerio from "cheerio";
@@ -32,17 +31,11 @@ import BrowserActionsInput, {
   type BrowserAction,
 } from "./browser-actions-input";
 import { searchChapters } from "@/lib/utils";
+import { streamSSE } from "@/lib/sse";
+import { toast } from "sonner";
 
 type Props = React.ComponentProps<typeof Dialog> & {
   onImport: (chapters: { title: string; url: string }[]) => void;
-};
-
-type PageData = {
-  screenshot: string;
-  elements: any[];
-  url: string;
-  pageSize: { width: number; height: number };
-  html: string;
 };
 
 export default function ImportTOCDialog({
@@ -50,6 +43,7 @@ export default function ImportTOCDialog({
   onImport,
   ...props
 }: Props) {
+  const previewRef = useRef<HTMLDivElement>(null!);
   const [url, setUrl] = usePersistedState("import-toc-dialog/url", "");
   const [linkSelector, setLinkSelector] = usePersistedState(
     "import-toc-dialog/link-selector",
@@ -76,23 +70,48 @@ export default function ImportTOCDialog({
     return searchChapters(items, (i) => i.title, search);
   }, [chapters, search]);
 
+  const [screenshot, setScreenshot] = useState<string | null>(null);
+  const [pageSize, setPageSize] = useState<{
+    width: number;
+    height: number;
+  } | null>(null);
+
   const {
     data: pageData,
     mutate: loadPage,
     isPending,
-  } = useMutation({
-    mutationFn: () => {
+  } = useMutation<{
+    elements: any[];
+    url: string;
+    pageSize: { width: number; height: number };
+    html: string;
+  }>({
+    mutationFn: async () => {
+      setScreenshot(null);
+
       let target = url;
       if (!/^https?:\/\//i.test(target)) target = "https://" + target;
 
-      return ofetch<PageData>(`/api/screenshot`, {
+      let res: any = null;
+      await streamSSE("/api/screenshot", {
         method: "POST",
         body: {
           url: target,
+          width: previewRef.current.offsetWidth,
           isFullPage: true,
           actions: browserActions.filter((i) => i.enabled),
         },
+        onMessage: (event, data) => {
+          if (event === "screenshot") {
+            setScreenshot(data.img);
+            setPageSize({ width: data.width, height: data.height });
+          }
+          if (event === "result") {
+            res = data;
+          }
+        },
       });
+      return res;
     },
   });
 
@@ -181,19 +200,19 @@ export default function ImportTOCDialog({
           </div>
 
           <div className="flex items-stretch h-[calc(90vh-200px)] mt-4 w-full gap-4">
-            <div className="h-full flex-1 border rounded overflow-hidden">
-              {pageData != null && (
-                <ScreenshotViewer
-                  screenshot={pageData.screenshot}
-                  elements={pageData.elements}
-                  selectedSelector={null}
-                  pageSize={pageData.pageSize}
-                  isSelecting={onSelectFn != null}
-                  onSelect={onSelectFn}
-                  scale={0.9}
-                  includeElements={selectType === "link" ? ["a"] : undefined}
-                />
-              )}
+            <div
+              ref={previewRef}
+              className="h-full flex-1 border rounded overflow-hidden"
+            >
+              <ScreenshotViewer
+                screenshot={screenshot}
+                elements={pageData?.elements}
+                selectedSelector={null}
+                pageSize={pageSize}
+                isSelecting={onSelectFn != null}
+                onSelect={onSelectFn}
+                includeElements={selectType === "link" ? ["a"] : undefined}
+              />
             </div>
             <div className="w-[30%] h-full overflow-y-auto">
               <Label>Actions</Label>
