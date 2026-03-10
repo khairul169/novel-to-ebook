@@ -1,11 +1,20 @@
+import { Button } from "@/components/ui/button";
 import { $api, API_URL } from "@/lib/api";
+import { ScanTextIcon } from "lucide-react";
+import { Link } from "react-router";
 
 export default function LibraryPage() {
   const { data: books } = $api.useQuery("get", "/library");
 
   return (
-    <div className="min-h-screen bg-zinc-800">
-      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 p-4 gap-4">
+    <div className="min-h-screen bg-zinc-800 p-4">
+      <Button asChild>
+        <Link to="/extract">
+          <ScanTextIcon /> Extract
+        </Link>
+      </Button>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-6 gap-4 mt-4">
         {books?.map((book) => (
           <a
             key={book.key}
@@ -25,7 +34,7 @@ export default function LibraryPage() {
               <img
                 src={`${API_URL}/library/cover.jpeg?key=${book.key}`}
                 alt={book.name}
-                className="absolute inset-0 object-cover"
+                className="absolute inset-0 w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}

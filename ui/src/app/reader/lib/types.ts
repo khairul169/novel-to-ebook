@@ -15,8 +15,39 @@ export type BookMetadata = {
 export type BookDoc = {
   metadata: BookMetadata;
   sections: any;
-  toc?: any;
+  toc?: {
+    label: string;
+    href: string;
+    subitems: any;
+    id: number;
+  }[];
   getCover?: () => Promise<Blob>;
+};
+
+export type BookRelocate = {
+  fraction: number;
+  section: {
+    current: number;
+    total: number;
+  };
+  location: {
+    current: number;
+    next: number;
+    total: number;
+  };
+  time: {
+    section: number;
+    total: number;
+  };
+  tocItem: {
+    label: string;
+    href: string;
+    subitems: any;
+    id: number;
+  };
+  pageItem: any;
+  cfi: string;
+  range: {};
 };
 
 export type RangeAnchor = (doc: Document) => Range;

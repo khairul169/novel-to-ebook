@@ -1,109 +1,60 @@
 import { useEffect, useRef, useState } from "react";
-import type { BookDoc, FoliateView } from "./lib/types.js";
+import type { BookDoc, BookRelocate, FoliateView } from "./lib/types";
 import { useSearchParams } from "react-router";
-import { API_URL } from "@/lib/api.js";
-
-type ReaderStyles = {
-  spacing: number;
-  justify: boolean;
-  hyphenate: boolean;
-  fontSize?: number;
-  minFontSize?: number;
-  fontWeight?: number | string;
-};
-
-const getCSS = ({
-  spacing,
-  justify,
-  hyphenate,
-  fontSize = 16,
-  minFontSize = 8,
-  fontWeight = 400,
-}: ReaderStyles) => `
-    @namespace epub "http://www.idpf.org/2007/ops";
-    html {
-        color-scheme: light dark;
-        background: #222;
-    }
-    html, body {
-      font-size: ${fontSize}px !important;
-      font-weight: ${fontWeight};
-      font-family: Arial, sans-serif;
-      -webkit-text-size-adjust: none;
-      text-size-adjust: none;
-      color: white;
-    }
-    a:link {
-      color: lightblue;
-    }
-    font[size="1"] {
-      font-size: ${minFontSize}px;
-    }
-    font[size="2"] {
-      font-size: ${minFontSize * 1.5}px;
-    }
-    font[size="3"] {
-      font-size: ${fontSize}px;
-    }
-    font[size="4"] {
-      font-size: ${fontSize * 1.2}px;
-    }
-    font[size="5"] {
-      font-size: ${fontSize * 1.5}px;
-    }
-    font[size="6"] {
-      font-size: ${fontSize * 2}px;
-    }
-    font[size="7"] {
-      font-size: ${fontSize * 3}px;
-    }
-    p, li, blockquote, dd {
-        line-height: ${spacing};
-        text-align: ${justify ? "justify" : "start"};
-        -webkit-hyphens: ${hyphenate ? "auto" : "manual"};
-        hyphens: ${hyphenate ? "auto" : "manual"};
-        -webkit-hyphenate-limit-before: 3;
-        -webkit-hyphenate-limit-after: 2;
-        -webkit-hyphenate-limit-lines: 2;
-        hanging-punctuation: allow-end last;
-        widows: 2;
-    }
-    /* prevent the above from overriding the align attribute */
-    [align="left"] { text-align: left; }
-    [align="right"] { text-align: right; }
-    [align="center"] { text-align: center; }
-    [align="justify"] { text-align: justify; }
-
-    pre {
-        white-space: pre-wrap !important;
-    }
-    aside[epub|type~="endnote"],
-    aside[epub|type~="footnote"],
-    aside[epub|type~="note"],
-    aside[epub|type~="rearnote"] {
-        display: none;
-    }
-`;
+import { API_URL } from "@/lib/api";
+import { getCSS, injectAdditionalLinks, type ReaderStyles } from "./lib/utils";
+import { Button } from "@/components/ui/button";
+import { ArrowLeftIcon } from "lucide-react";
 
 export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<FoliateView | null>(null);
-  const [_cover, setCover] = useState<string | null>(null);
+  const loadingRef = useRef(false);
+
   const [searchParams] = useSearchParams();
   const bookKey = searchParams.get("book") || "";
+  const [curBook, setCurBook] = useState<BookDoc | null>(null);
+  const [curState, setCurState] = useState<BookRelocate | null>(null);
+  const [styles, _setStyles] = useState<ReaderStyles>({
+    spacing: 1.6,
+    justify: true,
+    hyphenate: true,
+    fontSize: 16 * 1.2,
+  });
+
+  const onDocLoad = (e: Event) => {
+    const detail = (e as CustomEvent).detail;
+    const doc = detail?.doc;
+
+    if (doc) {
+      injectAdditionalLinks(doc);
+
+      doc.addEventListener("keydown", onKeyDown);
+      doc.addEventListener("wheel", onWheel);
+    }
+  };
+
+  const onWheel = (e: WheelEvent) => {
+    if (!viewRef.current) return;
+    if (e.deltaY < 0) viewRef.current.goLeft();
+    else viewRef.current.goRight();
+  };
 
   const onKeyDown = (event: KeyboardEvent) => {
     if (!viewRef.current) return;
 
     const k = event.key;
-    if (k === "ArrowLeft" || k === "h") viewRef.current.goLeft();
-    else if (k === "ArrowRight" || k === "l") viewRef.current.goRight();
+    if (k === "ArrowLeft" || k === "ArrowUp") viewRef.current.goLeft();
+    else if (k === "ArrowRight" || k === "ArrowDown") viewRef.current.goRight();
   };
 
   useEffect(() => {
     document.addEventListener("keydown", onKeyDown);
+    document.addEventListener("wheel", onWheel);
+
     return () => {
       document.removeEventListener("keydown", onKeyDown);
+      document.removeEventListener("wheel", onWheel);
     };
   }, []);
 
@@ -119,48 +70,20 @@ export default function ReaderPage() {
 
     const view = document.createElement("foliate-view") as FoliateView;
     view.style.width = "100%";
-    view.style.height = "100vh";
+    view.style.height = "100%";
     view.style.display = "block";
     viewRef.current = view;
-
-    containerRef.current.innerHTML = "";
     containerRef.current.append(view);
-    // document.body.append(view);
+
     await view.open(file as unknown as BookDoc);
-    view.addEventListener("load", (ev) => {
-      const doc = (ev as any).detail.doc as HTMLElement;
-      doc.addEventListener("keydown", onKeyDown);
-    });
+    view.addEventListener("load", onDocLoad);
     view.addEventListener("relocate", (e: any) => {
-      console.log(e.detail);
+      setCurState(e.detail);
     });
 
-    console.log(view.book);
     const { book } = view;
-    console.log(book.metadata.title);
-    // book.transformTarget?.addEventListener("data", ({ detail }) => {
-    //   detail.data = Promise.resolve(detail.data).catch((e) => {
-    //     console.error(new Error(`Failed to load ${detail.name}`, { cause: e }));
-    //     return "";
-    //   });
-    // });
-    view.renderer.setStyles?.(
-      getCSS({
-        spacing: 1.5,
-        justify: true,
-        hyphenate: true,
-        fontSize: 16,
-      }),
-    );
-
-    Promise.resolve(book.getCover?.())?.then((blob) => {
-      setCover(blob ? URL.createObjectURL(blob) : null);
-    });
-
-    const toc = book.toc;
-    if (toc) {
-      console.log("toc", toc);
-    }
+    setCurBook(book);
+    view.renderer.setStyles?.(getCSS(styles));
 
     // enable pagination
     view.renderer.setAttribute("flow", "paginated");
@@ -170,17 +93,9 @@ export default function ReaderPage() {
     // enable animation
     view.renderer.setAttribute("animated", "true");
 
+    // start render
     view.renderer.next();
   };
-
-  // const onChange = (
-  //   e: React.ChangeEvent<HTMLInputElement, HTMLInputElement>,
-  // ) => {
-  //   const file = e.target.files?.[0];
-  //   if (file) openDoc(file);
-  // };
-
-  const loadingRef = useRef(false);
 
   useEffect(() => {
     const fetchBook = async () => {
@@ -203,9 +118,31 @@ export default function ReaderPage() {
     }
   }, [bookKey]);
 
+  useEffect(() => {
+    // update styles
+    viewRef.current?.renderer.setStyles?.(getCSS(styles));
+  }, [styles]);
+
   return (
-    <div ref={containerRef}>
-      {/* <input type="file" onChange={onChange} /> */}
+    <div className="bg-[#222] h-screen overflow-hidden flex flex-col items-stretch">
+      <div className="px-2 py-1 text-white flex items-center gap-2">
+        <Button variant="ghost" size="icon-lg" onClick={() => history.back()}>
+          <ArrowLeftIcon />
+        </Button>
+        <p className="truncate max-w-2xl text-sm opacity-80">
+          {curBook?.metadata?.title}
+        </p>
+      </div>
+      <div ref={containerRef} className="flex-1 overflow-hidden" />
+      <div className="px-4 h-10 flex items-center text-white">
+        {curState && (
+          <p className="text-right opacity-80 text-xs">{`${Math.round((curState?.location.current / curState?.location.total) * 100)}%`}</p>
+        )}
+        <div className="flex-1" />
+        {curState && (
+          <p className="text-right opacity-80 text-xs">{`${curState?.location.current} / ${curState?.location.total}`}</p>
+        )}
+      </div>
     </div>
   );
 }

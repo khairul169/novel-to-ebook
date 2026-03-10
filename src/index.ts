@@ -6,6 +6,7 @@ import { Scalar } from "@scalar/hono-api-reference";
 
 import extract from "./app/extract/routes";
 import library from "./app/library/routes";
+import { initScheduler } from "./scheduler";
 
 const app = new Hono();
 
@@ -60,6 +61,8 @@ if (process.env.NODE_ENV !== "production") {
 
 const PORT = process.env.PORT || 3000;
 console.log(`Listening on http://localhost:${PORT}`);
+
+initScheduler();
 
 Bun.serve({
   fetch: app.fetch,

@@ -1,5 +1,4 @@
 import { Hono } from "hono";
-import { scanLibrary, type LibraryItems } from "./utils";
 import { openApi } from "hono-zod-openapi";
 import {
   ListLibraryResponseSchema,
@@ -10,13 +9,9 @@ import {
 } from "./schema";
 import { HTTPError } from "../../lib/error";
 import fs from "fs/promises";
+import { getLibrary } from "./context";
 
 const router = new Hono();
-let library: LibraryItems = [];
-
-scanLibrary([process.cwd() + "/data"]).then((r) => {
-  library = r;
-});
 
 router.get(
   "/",
@@ -26,7 +21,7 @@ router.get(
     responses: { 200: ListLibraryResponseSchema },
   }),
   async (c) => {
-    return c.var.res(library);
+    return c.var.res(getLibrary());
   },
 );
 
@@ -45,7 +40,7 @@ router.get(
   }),
   async (c) => {
     const { key } = c.req.valid("query");
-    const item = library.find((i) => i.key === key && !i.isDirectory);
+    const item = getLibrary().find((i) => i.key === key && !i.isDirectory);
     if (!item) {
       throw new HTTPError("Library item not found", { status: 404 });
     }
@@ -71,7 +66,7 @@ router.get(
   }),
   async (c) => {
     const { key } = c.req.valid("query");
-    const item = library.find((i) => i.key === key && !i.isDirectory);
+    const item = getLibrary().find((i) => i.key === key && !i.isDirectory);
     if (!item) {
       throw new HTTPError("Library item not found", { status: 404 });
     }

@@ -1,6 +1,8 @@
 import { Page } from "puppeteer";
 import * as cheerio from "cheerio";
 import { cleanHTML } from "../../lib/utils";
+import fs from "fs/promises";
+import path from "path";
 
 export function extractElements(
   anchorTextContains = false,
@@ -230,4 +232,26 @@ export async function extractContent(page: Page, url: string, selectors: any) {
     'src="https://',
   );
   return { chapter, content, url, selectors };
+}
+
+export async function fetchImage(url: string, outDir: string) {
+  const res = await fetch(url);
+  if (!res.ok) {
+    throw new Error(`Failed to fetch image: ${res.statusText}`);
+  }
+
+  const buffer = await res.arrayBuffer();
+  const contentType = res.headers.get("content-type") || "image/jpeg";
+  const ext = contentType.split("/")[1] || "";
+  if (!["jpeg", "jpg", "png", "svg", "webp", "gif", "bmp"].includes(ext)) {
+    throw new Error(`Unsupported image format: ${ext}`);
+  }
+
+  const urlParts = new URL(url);
+  const filename =
+    (urlParts.pathname.split("/").pop() || "image-" + Date.now()) + "." + ext;
+  const fullPath = path.join(outDir, filename);
+  await fs.writeFile(fullPath, Buffer.from(buffer));
+
+  return { fullPath, filename, contentType };
 }

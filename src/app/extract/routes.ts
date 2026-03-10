@@ -1,7 +1,7 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import { cleanHTML, translate, waitFor } from "../../lib/utils";
-import * as cheerio from "cheerio";
+import fs from "fs/promises";
+import { translate, waitFor } from "../../lib/utils";
 import {
   ActionSchema,
   ExtractRequestSchema,
@@ -15,9 +15,15 @@ import type { Page } from "puppeteer";
 import { openApi } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
-import { extractContent, extractElements, getCleanHTML } from "./utils";
+import {
+  extractContent,
+  extractElements,
+  fetchImage,
+  getCleanHTML,
+} from "./utils";
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
+import { rescanLibrary } from "../library/context";
 
 const router = new Hono();
 
@@ -143,8 +149,17 @@ router.post(
     const task = addTask(async () => {
       let page;
       const contents: { title: string; data: string }[] = [];
+      let cover: {
+        fullPath: string;
+        filename: string;
+        contentType: string;
+      } | null = null;
 
       try {
+        if (body.cover) {
+          cover = await fetchImage(body.cover, "./img");
+        }
+
         page = await newBrowserPage({ blockResources: true });
         await page.setViewport({ width: 640, height: 480 });
 
@@ -186,7 +201,7 @@ router.post(
         await new Epub({
           title: body.title,
           author: body.author,
-          cover: body.cover,
+          cover: cover?.fullPath,
           content: contents,
           output: "./data/" + body.title + ".epub",
         }).promise;
@@ -195,6 +210,8 @@ router.post(
           progress: 100,
           data: { title: "Success!" },
         });
+
+        setTimeout(() => rescanLibrary, 1000);
       } catch (err) {
         console.error(err);
         setTask(task.id, {
@@ -204,6 +221,7 @@ router.post(
         throw err;
       } finally {
         if (page) await page.close();
+        if (cover) await fs.unlink(cover.fullPath);
       }
     });
 

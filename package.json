@@ -5,12 +5,15 @@
   "private": true,
   "scripts": {
     "start": "bun run src/index.ts",
-    "dev": "bun --watch run src/index.ts"
+    "dev:server": "bun --watch run src/index.ts",
+    "dev:client": "cd ui && npm run dev",
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\""
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/epub-gen": "^0.1.2",
-    "@types/sanitize-html": "^2.16.0"
+    "@types/sanitize-html": "^2.16.0",
+    "concurrently": "^9.2.1"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -20,6 +23,7 @@
     "@google/genai": "^1.44.0",
     "@scalar/hono-api-reference": "^0.10.0",
     "cheerio": "^1.2.0",
+    "cron": "^4.4.0",
     "epub": "^2.1.1",
     "epub-gen": "^0.1.0",
     "hono": "^4.12.5",
