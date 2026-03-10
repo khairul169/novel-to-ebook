@@ -79,11 +79,9 @@ export default function ExtractPage() {
   const [selectors, setSelectors] = usePersistedState<{
     chapter: string;
     content: string;
-    nextChapter: string;
   }>("app/selectors", {
     chapter: "",
     content: "",
-    nextChapter: "",
   });
   const [downloadProgress, _setDownloadProgress] = useState<{
     status: string;
@@ -116,6 +114,46 @@ export default function ExtractPage() {
           }
           if (event === "result") {
             setPageData(data);
+
+            const $ = cheerio.load(data.html);
+            const pageTitle = $("h1, h2, h3, h4, b, strong")
+              .first()
+              .text()
+              .trim();
+            if (!title && pageTitle) {
+              setTitle(pageTitle);
+            }
+
+            if (!selectors.content) {
+              setSelectors((prev) => ({
+                ...prev,
+                content: data.contentSelector,
+              }));
+            }
+
+            if (!coverImg) {
+              const img = $(data.contentSelector)
+                .parent()
+                .find("img")
+                .first()
+                .attr("src");
+              img && setCoverImg(img);
+            }
+
+            if (!chapters.length) {
+              const chapter = $(data.contentSelector)
+                .find("h1, h2, h3, h4, b, strong")
+                .filter((_, i) => $(i).text().trim().length > 0)
+                .first()
+                .text()
+                .trim();
+              setChapters([
+                {
+                  title: chapter || title || "Chapter 1",
+                  url: data.url,
+                },
+              ]);
+            }
           }
         },
       });

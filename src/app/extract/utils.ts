@@ -3,77 +3,11 @@ import * as cheerio from "cheerio";
 import { cleanHTML } from "../../lib/utils";
 import fs from "fs/promises";
 import path from "path";
+import { JSDOM } from "jsdom";
 
-export function extractElements(
-  anchorTextContains = false,
-  ignoreDuplicates = false,
-) {
+export function extractElements(ignoreDuplicates = false) {
   const result: any[] = [];
   const seen = new Set();
-
-  function getElementsWithText(text: string) {
-    return Array.from(document.querySelectorAll("*")).filter((el) => {
-      const isMatch =
-        el.textContent.trim() === text.trim() && el.textContent.length < 30;
-      if (!isMatch) return false;
-
-      const hasChildMatch = Array.from(el.children).some(
-        (child) => child.textContent.trim() === text.trim(),
-      );
-      return !hasChildMatch;
-    });
-  }
-
-  function getSelector(el: HTMLElement) {
-    const parts = [];
-    let current: HTMLElement | null = el;
-
-    if (
-      anchorTextContains &&
-      current.tagName.toLowerCase() === "a" &&
-      current instanceof HTMLAnchorElement &&
-      current.href &&
-      current.textContent.length > 0 &&
-      current.textContent.length < 30 &&
-      getElementsWithText(current.textContent).length === 1
-    ) {
-      return `${current.tagName.toLowerCase()}:contains("${current.textContent.trim()}")`;
-    }
-
-    let depth = 0;
-    while (current && current !== document.body && depth < 10) {
-      depth++;
-      let seg = current.tagName.toLowerCase();
-      if (current.id) {
-        seg += `#${current.id}`;
-        parts.unshift(seg);
-        break;
-      }
-      const classes = Array.from(current.classList)
-        .filter((c) => {
-          return !c.match(/^\d/) && c.length < 24 && !c.match(/\d{6,}/);
-        })
-        .slice(0, 2)
-        .join(".");
-      if (classes) seg += `.${classes}`;
-      const siblings = current.parentElement
-        ? Array.from(current.parentElement.children).filter(
-            (c) =>
-              c.tagName === current?.tagName &&
-              (!current.classList.length ||
-                c.classList.contains(current.classList[0]!)),
-          )
-        : [];
-      if (siblings.length > 1 && parts.length === 0) {
-        seg += `:nth-of-type(${siblings.indexOf(current) + 1})`;
-      }
-      parts.unshift(seg);
-      current = current.parentElement;
-    }
-
-    // return parts.join(" > ");
-    return parts.join(" ");
-  }
 
   const tags = [
     "h1",
@@ -112,11 +46,50 @@ export function extractElements(
     "select",
   ];
 
+  function getSelector(el: HTMLElement, doc: Document) {
+    const parts = [];
+    let current: HTMLElement | null = el;
+
+    let depth = 0;
+    while (current && current !== doc.body && depth < 10) {
+      depth++;
+      let seg = current.tagName.toLowerCase();
+      if (current.id) {
+        seg += `#${current.id}`;
+        parts.unshift(seg);
+        break;
+      }
+      const classes = Array.from(current.classList)
+        .filter((c) => {
+          return !c.match(/^\d/) && c.length < 24 && !c.match(/\d{6,}/);
+        })
+        .slice(0, 2)
+        .join(".");
+      if (classes) seg += `.${classes}`;
+      const siblings = current.parentElement
+        ? Array.from(current.parentElement.children).filter(
+            (c) =>
+              c.tagName === current?.tagName &&
+              (!current.classList.length ||
+                c.classList.contains(current.classList[0]!)),
+          )
+        : [];
+      if (siblings.length > 1 && parts.length === 0) {
+        seg += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+      }
+      parts.unshift(seg);
+      current = current.parentElement;
+    }
+
+    // return parts.join(" > ");
+    return parts.join(" ");
+  }
+
   for (const tag of tags) {
     document.querySelectorAll(tag).forEach((el: any) => {
       const rect = el.getBoundingClientRect();
       // if (rect.width < 5 || rect.height < 5) return;
-      const selector = getSelector(el);
+      const selector = getSelector(el, document);
 
       if (ignoreDuplicates) {
         if (seen.has(selector)) return;
@@ -254,4 +227,112 @@ export async function fetchImage(url: string, outDir: string) {
   await fs.writeFile(fullPath, Buffer.from(buffer));
 
   return { fullPath, filename, contentType };
+}
+
+export function getSelector(el: HTMLElement, doc: Document) {
+  const parts = [];
+  let current: HTMLElement | null = el;
+
+  let depth = 0;
+  while (current && current !== doc.body && depth < 10) {
+    depth++;
+    let seg = current.tagName.toLowerCase();
+    if (current.id) {
+      seg += `#${current.id}`;
+      parts.unshift(seg);
+      break;
+    }
+    const classes = Array.from(current.classList)
+      .filter((c) => {
+        return !c.match(/^\d/) && c.length < 24 && !c.match(/\d{6,}/);
+      })
+      .slice(0, 2)
+      .join(".");
+    if (classes) seg += `.${classes}`;
+    const siblings = current.parentElement
+      ? Array.from(current.parentElement.children).filter(
+          (c) =>
+            c.tagName === current?.tagName &&
+            (!current.classList.length ||
+              c.classList.contains(current.classList[0]!)),
+        )
+      : [];
+    if (siblings.length > 1 && parts.length === 0) {
+      seg += `:nth-of-type(${siblings.indexOf(current) + 1})`;
+    }
+    parts.unshift(seg);
+    current = current.parentElement;
+  }
+
+  // return parts.join(" > ");
+  return parts.join(" ");
+}
+
+export function findContentSelector(html: string) {
+  const dom = new JSDOM(html);
+  const doc = dom.window.document;
+  const scores = new Map<HTMLElement, number>();
+
+  const paragraphs = doc.querySelectorAll("p");
+
+  for (const p of paragraphs) {
+    const text = p.textContent?.trim() ?? "";
+    if (text.length < 40) continue;
+
+    const parent = p.parentElement;
+    if (!parent) continue;
+
+    const grand = parent.parentElement;
+    let score = 1 + Math.min(Math.floor(text.length / 120), 3);
+    scores.set(parent, (scores.get(parent) || 0) + score);
+
+    if (grand) {
+      scores.set(grand, (scores.get(grand) || 0) + score * 0.5);
+    }
+    if (parent.children.length > 3) {
+      scores.set(parent, (scores.get(parent) || 0) + 2);
+    }
+  }
+
+  // images
+  const images = doc.querySelectorAll("img");
+  for (const img of images) {
+    const parent = img.parentElement;
+    if (!parent) continue;
+
+    const grand = parent.parentElement;
+    let score = 2;
+    scores.set(parent, (scores.get(parent) || 0) + score);
+
+    if (grand) {
+      scores.set(grand, (scores.get(grand) || 0) + score * 0.5);
+    }
+    if (parent.children.length <= 3) {
+      scores.set(parent, (scores.get(parent) || 0) + 3);
+    }
+  }
+
+  // best element
+  let best: HTMLElement | null = null;
+  let bestScore = 0;
+
+  for (const [el, score] of scores) {
+    const textLength = el.textContent?.trim()?.length ?? 1;
+    const linkCount = el.querySelectorAll("a").length;
+    const linkDensity = linkCount / textLength;
+    const finalScore = score - linkDensity * 10;
+
+    if (finalScore > bestScore) {
+      bestScore = finalScore;
+      best = el;
+    }
+  }
+
+  if (!best) return null;
+
+  return {
+    selector: getSelector(best, doc),
+    element: best,
+    html: best.innerHTML.trim(),
+  };
 }

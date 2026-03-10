@@ -26,18 +26,17 @@ const blockResources = BlockResourcesPlugin({
   interceptResolutionPriority: DEFAULT_INTERCEPT_RESOLUTION_PRIORITY,
 });
 
-export async function getBrowser() {
+export async function getBrowser(opt?: { headless?: boolean }) {
   if (!browser) {
     browser = await puppeteer.use(StealthPlugin()).launch({
-      headless: true,
-      // headless: false,
+      headless: opt?.headless ?? true,
       args: [
         "--no-sandbox",
         "--disable-setuid-sandbox",
         "--disable-gpu",
         "--disable-extensions",
       ],
-      userDataDir: "./browser-data", // Specify a directory path
+      // userDataDir: "./browser-data", // Specify a directory path
     });
     blocker = await PuppeteerBlocker.fromPrebuiltAdsAndTracking(fetch);
   }
@@ -45,8 +44,11 @@ export async function getBrowser() {
   return browser;
 }
 
-export async function newBrowserPage(opt?: { blockResources?: boolean }) {
-  const browser = await getBrowser();
+export async function newBrowserPage(opt?: {
+  blockResources?: boolean;
+  headless?: boolean;
+}) {
+  const browser = await getBrowser({ headless: opt?.headless });
   const page = await browser.newPage();
   blocker?.enableBlockingInPage(page);
 

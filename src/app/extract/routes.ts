@@ -19,7 +19,9 @@ import {
   extractContent,
   extractElements,
   fetchImage,
+  findContentSelector,
   getCleanHTML,
+  getSelector,
 } from "./utils";
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
@@ -109,14 +111,20 @@ router.post(
         // Extract element tree for selector building
         const elements = await page.evaluate(
           extractElements,
-          body.anchorTextContains,
           body.ignoreDuplicates,
         );
         const html = await page.evaluate(getCleanHTML);
+        const contentSelector = findContentSelector(html)?.selector || null;
 
         s.writeSSE({
           event: "result",
-          data: JSON.stringify({ elements, url, pageSize, html }),
+          data: JSON.stringify({
+            elements,
+            url,
+            pageSize,
+            html,
+            contentSelector,
+          }),
         });
       } catch (err) {
         await s.writeSSE({
