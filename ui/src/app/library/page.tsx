@@ -7,7 +7,7 @@ export default function LibraryPage() {
   const { data: books } = $api.useQuery("get", "/library");
 
   return (
-    <div className="min-h-screen bg-zinc-800 p-4">
+    <div className="min-h-screen bg-background p-4">
       <Button asChild>
         <Link to="/extract">
           <ScanTextIcon /> Extract
@@ -19,9 +19,9 @@ export default function LibraryPage() {
           <a
             key={book.key}
             href={`/reader/?book=${encodeURI(book.key)}`}
-            className="text-white"
+            className="text-foreground"
           >
-            <div className="w-full aspect-3/4 bg-zinc-700 relative overflow-hidden">
+            <div className="w-full aspect-3/4 bg-background relative overflow-hidden">
               <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
                 <p className="text-md line-clamp-3">
                   {book.metadata?.title || book.name}

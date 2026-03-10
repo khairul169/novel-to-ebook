@@ -1,26 +1,45 @@
-import { useEffect, useRef, useState } from "react";
+import React, {
+  useCallback,
+  useEffect,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import type { BookDoc, BookRelocate, FoliateView } from "./lib/types";
-import { useSearchParams } from "react-router";
+import { Link, useSearchParams } from "react-router";
 import { API_URL } from "@/lib/api";
 import { getCSS, injectAdditionalLinks, type ReaderStyles } from "./lib/utils";
 import { Button } from "@/components/ui/button";
-import { ArrowLeftIcon } from "lucide-react";
+import { MoonIcon, PanelLeftIcon, SunIcon, XIcon } from "lucide-react";
+import dayjs from "dayjs";
+import { cn } from "@/lib/utils";
+import Sidebar from "./components/sidebar";
+import { settingsStore, sidebarStore } from "./lib/stores";
+import { useStore } from "zustand";
+import { appStore, setAppTheme } from "@/stores/app.store";
+import { useReaderTheme } from "./lib/hooks";
 
 export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<FoliateView | null>(null);
   const loadingRef = useRef(false);
+  const headerRef = useRef<HeaderRef>(null!);
 
   const [searchParams] = useSearchParams();
   const bookKey = searchParams.get("book") || "";
   const [curBook, setCurBook] = useState<BookDoc | null>(null);
   const [curState, setCurState] = useState<BookRelocate | null>(null);
-  const [styles, _setStyles] = useState<ReaderStyles>({
-    spacing: 1.6,
-    justify: true,
-    hyphenate: true,
-    fontSize: 16 * 1.2,
-  });
+  const theme = useStore(appStore, (i) => i.theme);
+  const settings = useStore(settingsStore);
+
+  const styles = useMemo<ReaderStyles>(
+    () => ({
+      ...settings.styles,
+      colorScheme: theme as never,
+    }),
+    [theme, settings],
+  );
 
   const onDocLoad = (e: Event) => {
     const detail = (e as CustomEvent).detail;
@@ -31,6 +50,7 @@ export default function ReaderPage() {
 
       doc.addEventListener("keydown", onKeyDown);
       doc.addEventListener("wheel", onWheel);
+      headerRef.current?.addDocListener(doc);
     }
   };
 
@@ -87,7 +107,7 @@ export default function ReaderPage() {
 
     // enable pagination
     view.renderer.setAttribute("flow", "paginated");
-    view.renderer.setAttribute("gap", "1%");
+    view.renderer.setAttribute("gap", "5%");
     view.renderer.setAttribute("max-inline-size", "720px");
 
     // enable animation
@@ -124,25 +144,160 @@ export default function ReaderPage() {
   }, [styles]);
 
   return (
-    <div className="bg-[#222] h-screen overflow-hidden flex flex-col items-stretch">
-      <div className="px-2 py-1 text-white flex items-center gap-2">
-        <Button variant="ghost" size="icon-lg" onClick={() => history.back()}>
-          <ArrowLeftIcon />
-        </Button>
-        <p className="truncate max-w-2xl text-sm opacity-80">
-          {curBook?.metadata?.title}
-        </p>
-      </div>
-      <div ref={containerRef} className="flex-1 overflow-hidden" />
-      <div className="px-4 h-10 flex items-center text-white">
-        {curState && (
-          <p className="text-right opacity-80 text-xs">{`${Math.round((curState?.location.current / curState?.location.total) * 100)}%`}</p>
-        )}
-        <div className="flex-1" />
-        {curState && (
-          <p className="text-right opacity-80 text-xs">{`${curState?.location.current} / ${curState?.location.total}`}</p>
-        )}
+    <div className="bg-background h-screen-dvh overflow-hidden flex flex-row items-stretch">
+      <Sidebar
+        book={curBook}
+        curState={curState}
+        onTocClick={(href) => viewRef.current?.goTo(href)}
+      />
+
+      <div className="flex-1 flex flex-col items-stretch relative">
+        <Header ref={headerRef} curBook={curBook} />
+
+        <div ref={containerRef} className="flex-1 overflow-hidden" />
+
+        <div
+          className="px-6 pb-4 flex items-center text-foreground/60 gap-4 text-xs hover:text-foreground/80 transition-colors"
+          style={{
+            background: settings.styles.theme?.[theme]?.background,
+            color: settings.styles.theme?.[theme]?.color,
+          }}
+        >
+          <p className="truncate max-w-2xl text-sm">
+            {curState?.tocItem?.label || curBook?.metadata?.title || ""}
+          </p>
+          <div className="flex-1" />
+          <Time />
+          <span>&middot;</span>
+          {curState && (
+            <p className="text-right">{`${curState?.location.current} / ${curState?.location.total} (${Math.round((curState?.location.current / curState?.location.total) * 100)}%)`}</p>
+          )}
+        </div>
       </div>
     </div>
   );
 }
+
+type HeaderRef = { addDocListener(doc: Document): () => void };
+
+const Header = ({
+  curBook,
+  ref,
+}: {
+  curBook?: BookDoc | null;
+  ref?: React.Ref<HeaderRef>;
+}) => {
+  const touchStart = useRef<{ x: number; y: number } | null>(null);
+  const [isVisible, setVisible] = useState(false);
+  const [isSticky, setSticky] = useState(false);
+  const theme = useStore(appStore, (i) => i.theme);
+  const readerTheme = useReaderTheme();
+
+  const onTouchStart = useCallback((e: TouchEvent) => {
+    touchStart.current = {
+      x: e.changedTouches[0].clientX,
+      y: e.changedTouches[0].clientY,
+    };
+  }, []);
+
+  const onTouchEnd = useCallback((e: TouchEvent) => {
+    const touch = e.changedTouches[0];
+    const w = window.innerWidth * 0.3;
+    const startX = (window.innerWidth - w) * 0.5;
+    const offset = touch.clientX - (touchStart.current?.x || 0);
+    touchStart.current = null;
+
+    if (Math.abs(offset) > 5) return;
+
+    if (touch.clientX >= startX && touch.clientX <= startX + w) {
+      setSticky((s) => !s);
+    }
+  }, []);
+
+  const onMouseMove = useCallback(
+    (e: MouseEvent) => {
+      if (isSticky) return;
+      setVisible(e.clientY < 100);
+    },
+    [isSticky],
+  );
+
+  const addDocListener = useCallback(
+    (doc: Document) => {
+      doc.addEventListener("mousemove", onMouseMove);
+      doc.addEventListener("touchstart", onTouchStart);
+      doc.addEventListener("touchend", onTouchEnd);
+
+      return () => {
+        doc.removeEventListener("mousemove", onMouseMove);
+        doc.removeEventListener("touchstart", onTouchStart);
+        doc.removeEventListener("touchend", onTouchEnd);
+      };
+    },
+    [onMouseMove, onTouchStart, onTouchEnd],
+  );
+
+  useEffect(() => {
+    return addDocListener(window as never);
+  }, [addDocListener]);
+
+  useImperativeHandle(ref, () => ({ addDocListener }), [addDocListener]);
+
+  return (
+    <div
+      className={cn(
+        "absolute top-0 left-0 w-full z-1 px-3 h-14 text-foreground flex items-center gap-2 bg-background transition-all -translate-y-full opacity-0",
+        isSticky || isVisible ? "translate-y-0 opacity-100" : "",
+      )}
+      style={{
+        background: readerTheme.background,
+        color: readerTheme.color,
+      }}
+    >
+      <Button
+        variant="ghost"
+        size="icon-lg"
+        onClick={() =>
+          sidebarStore.setState((s) => ({ isVisible: !s.isVisible }))
+        }
+      >
+        <PanelLeftIcon />
+      </Button>
+      <p className="truncate max-w-2xl text-sm opacity-80">
+        {curBook?.metadata?.title}
+      </p>
+      <div className="flex-1" />
+      <Button
+        variant="ghost"
+        className="rounded-full"
+        size="icon-lg"
+        onClick={() => setAppTheme(theme === "dark" ? "light" : "dark")}
+      >
+        {theme === "dark" ? <SunIcon /> : <MoonIcon />}
+      </Button>
+      <Button
+        asChild
+        variant="secondary"
+        className="rounded-full"
+        size="icon-lg"
+      >
+        <Link to="/" replace>
+          <XIcon />
+        </Link>
+      </Button>
+    </div>
+  );
+};
+
+const Time = () => {
+  const [time, setTime] = useState(dayjs().format("HH:mm"));
+
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTime(dayjs().format("HH:mm"));
+    }, 1000);
+    return () => clearInterval(interval);
+  }, []);
+
+  return <p>{time}</p>;
+};

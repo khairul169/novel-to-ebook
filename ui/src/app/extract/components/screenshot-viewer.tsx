@@ -176,7 +176,7 @@ const ScreenshotViewer = ({
   return (
     <div
       className={cn(
-        "w-full h-full bg-slate-200",
+        "w-full h-full bg-slate-200 dark:bg-background",
         screenshot ? "overflow-auto" : "overflow-hidden",
       )}
     >
@@ -316,7 +316,7 @@ function ElementTooltip({
 
   return (
     <div
-      className="pointer-events-none absolute z-10 max-w-70 rounded-md border border-zinc-800 bg-zinc-900/95 px-3 py-2 backdrop-blur-md"
+      className="pointer-events-none absolute z-10 max-w-70 rounded-md border bg-background/95 px-3 py-2 backdrop-blur-md"
       style={{
         left: Math.min(x, rect.width - 280),
         top: Math.min(y, rect.height - 80),

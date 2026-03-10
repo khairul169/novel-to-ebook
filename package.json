@@ -6,7 +6,7 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev:server": "bun --watch run src/index.ts",
-    "dev:client": "cd ui && npm run dev",
+    "dev:client": "cd ui && npm run dev -- --host",
     "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\""
   },
   "devDependencies": {

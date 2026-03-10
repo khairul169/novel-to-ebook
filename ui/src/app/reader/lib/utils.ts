@@ -1,3 +1,8 @@
+export type ReaderTheme = {
+  background?: string;
+  color?: string;
+  linkColor?: string;
+};
 export type ReaderStyles = {
   spacing: number;
   justify: boolean;
@@ -7,6 +12,8 @@ export type ReaderStyles = {
   fontSize?: number;
   minFontSize?: number;
   fontWeight?: number | string;
+  theme?: { dark: ReaderTheme; light: ReaderTheme };
+  colorScheme?: "dark" | "light";
 };
 
 export function getCSS({
@@ -18,6 +25,8 @@ export function getCSS({
   fontSize = 16,
   minFontSize = 8,
   fontWeight = 400,
+  theme,
+  colorScheme = "dark",
 }: ReaderStyles) {
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
@@ -32,11 +41,11 @@ export function getCSS({
       font-family: ${fontFamily} !important;
       -webkit-text-size-adjust: none;
       text-size-adjust: none;
-      background: #222; 
-      color: #ddd;
+      background: ${theme?.[colorScheme]?.background || "#222"}; 
+      color: ${theme?.[colorScheme]?.color || "#fff"};
     }
     a:link {
-      color: lightblue;
+      color: ${theme?.[colorScheme]?.linkColor || "lightblue"};
     }
     font[size="1"] {
       font-size: ${minFontSize}px;

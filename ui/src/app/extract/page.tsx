@@ -1,6 +1,6 @@
 import { useCallback, useRef, useState } from "react";
 import ScreenshotViewer from "./components/screenshot-viewer";
-import { cleanHTML, cn, proxyUrl } from "../../lib/utils";
+import { cleanHTML, proxyUrl } from "../../lib/utils";
 import { Field, FieldLabel } from "../../components/ui/field";
 import {
   InputGroup,
@@ -41,6 +41,8 @@ import DownloadDialog from "./components/download-dialog";
 import { streamSSE } from "../../lib/sse";
 import api from "../../lib/api";
 import Tasks from "./components/tasks";
+import { Link } from "react-router";
+import { Input } from "@/components/ui/input";
 
 export default function ExtractPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
@@ -186,46 +188,28 @@ export default function ExtractPage() {
     <div className="flex h-screen flex-col overflow-hidden">
       <Tasks />
 
-      <header className="z-10 flex h-15 shrink-0 items-center gap-6 border-b border-zinc-800 bg-zinc-900 px-6">
+      <header className="z-10 flex h-15 shrink-0 items-center gap-6 border-b border-border bg-white dark:bg-background px-6">
         <div className="flex shrink-0 items-center gap-2.5">
-          <span className="font-mono text-[15px] font-bold tracking-[-0.5px] text-cyan-400">
+          <Link
+            to="/"
+            className="font-mono text-[20px] font-bold tracking-[-0.5px] text-foreground"
+          >
             Storvi
-          </span>
+          </Link>
         </div>
 
         <form onSubmit={handleLoad} className="flex flex-1 gap-2">
           <div className="relative flex-1">
-            <span className="absolute left-3 top-1/2 -translate-y-1/2 font-mono text-xs text-zinc-400">
-              https://
-            </span>
-            <input
+            <Input
               type="text"
               value={url}
               onChange={(e) => setUrl(e.target.value)}
-              onBlur={(e) =>
-                setUrl(
-                  e.target.value
-                    .trim()
-                    .replace("https://", "")
-                    .replace("http://", ""),
-                )
-              }
               placeholder="example.com/page"
-              className="h-9.5 w-full rounded-md border border-zinc-800 bg-zinc-950 pl-18 pr-3 font-mono text-[13px] text-zinc-200 outline-none transition-colors focus:border-cyan-400"
             />
           </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className={cn(
-              "rounded-md px-5 font-mono text-[13px] font-bold whitespace-nowrap transition",
-              loading
-                ? "cursor-not-allowed bg-zinc-800 text-zinc-400"
-                : "cursor-pointer bg-cyan-400 text-black hover:bg-cyan-300",
-            )}
-          >
+          <Button type="submit" disabled={loading} variant="outline">
             {loading ? "Loading..." : "▶  Open"}
-          </button>
+          </Button>
         </form>
       </header>
 
@@ -239,7 +223,7 @@ export default function ExtractPage() {
         <ResizablePanel>
           <div
             ref={containerRef}
-            className="h-full overflow-hidden flex flex-col items-center justify-center bg-slate-200"
+            className="h-full overflow-hidden flex flex-col items-center justify-center bg-slate-200 dark:bg-[#333]"
           >
             {/* {!pageData && !loading && <EmptyState />}
             {loading && <LoadingView />} */}
@@ -260,7 +244,7 @@ export default function ExtractPage() {
         <ResizableHandle />
 
         <ResizablePanel defaultSize="25%">
-          <div className="p-4 space-y-3 overflow-y-auto h-full">
+          <div className="p-4 space-y-3 overflow-y-auto h-full bg-white dark:bg-background">
             <Field>
               <FieldLabel>Title</FieldLabel>
               <InputGroup>

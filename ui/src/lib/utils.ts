@@ -148,3 +148,24 @@ export function searchChapters<T>(
     return numMatch && textMatch;
   });
 }
+
+type Platform = "windows" | "mac" | "linux" | "android" | "ios" | null;
+
+export function getPlatform(): Platform {
+  const userAgent = navigator.userAgent.toLowerCase();
+  const userAgentLower = userAgent.toLowerCase();
+  if (userAgentLower.indexOf("win") !== -1) return "windows";
+  if (userAgentLower.indexOf("mac") !== -1) return "mac";
+  if (userAgentLower.indexOf("linux") !== -1) return "linux";
+  if (userAgentLower.indexOf("android") !== -1) return "android";
+  if (
+    userAgentLower.indexOf("iphone") !== -1 ||
+    userAgentLower.indexOf("ipad") !== -1
+  )
+    return "ios";
+  return null;
+}
+
+export const curPlatform = getPlatform();
+export const isMobile = curPlatform === "android" || curPlatform === "ios";
+export const isDesktop = !isMobile;

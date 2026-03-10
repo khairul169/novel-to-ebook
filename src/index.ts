@@ -67,5 +67,7 @@ initScheduler();
 Bun.serve({
   fetch: app.fetch,
   idleTimeout: 255,
+  hostname: "0.0.0.0",
+  port: PORT,
   development: process.env.NODE_ENV !== "production",
 });
