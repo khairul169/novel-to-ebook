@@ -9,15 +9,13 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
   ? ColumnType<S, I | undefined, U>
   : ColumnType<T, T | undefined, T>;
 
-export interface ReadHistory {
-  createdAt: Generated<string>;
-  fraction: string;
+export interface Histories {
+  date: Generated<string>;
   id: Generated<number | null>;
   key: string;
   location: string;
-  updatedAt: Generated<string>;
 }
 
 export interface DB {
-  read_history: ReadHistory;
+  histories: Histories;
 }

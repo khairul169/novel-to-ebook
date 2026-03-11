@@ -1,6 +1,6 @@
 import type { DB } from "./types";
 import { BunWorkerDialect } from "kysely-bun-worker";
-import { Kysely, SqliteDialect } from "kysely";
+import { Kysely } from "kysely";
 
 const DB_URL = process.env.DATABASE_URL;
 if (!DB_URL) {

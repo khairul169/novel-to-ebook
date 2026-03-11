@@ -26,6 +26,7 @@ import {
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
 import { rescanLibrary } from "../library/context";
+import path from "path";
 
 const router = new Hono();
 
@@ -211,7 +212,10 @@ router.post(
           author: body.author,
           cover: cover?.fullPath,
           content: contents,
-          output: "./data/" + body.title + ".epub",
+          output: path.join(
+            process.env.DATA_PATH || "./data",
+            body.title + ".epub",
+          ),
         }).promise;
 
         setTask(task.id, {

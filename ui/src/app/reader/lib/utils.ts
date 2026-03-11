@@ -1,3 +1,7 @@
+import api from "@/lib/api";
+import { getDB } from "@/lib/db";
+import type { BookRelocate } from "./types";
+
 export type ReaderTheme = {
   background?: string;
   color?: string;
@@ -118,4 +122,75 @@ export function injectAdditionalLinks(doc: Document) {
     child.crossOrigin = link.crossOrigin || "";
     doc.head.appendChild(child);
   });
+}
+
+export async function getHistory(key: string): Promise<
+  | {
+      location: BookRelocate;
+      date: Date;
+    }
+  | undefined
+> {
+  const cached = await getDB().then((db) => db.get("histories", key));
+
+  try {
+    const { data } = await api.GET("/library/progress", {
+      params: { query: { key } },
+    });
+    if (!data) {
+      throw new Error("History not found");
+    }
+
+    const date = new Date(data.date);
+    const location = data.location as BookRelocate;
+
+    // return cached data if it's more recent
+    if (cached && date < cached.date) {
+      // console.log("using cached data becoz newer");
+      return cached;
+    }
+
+    if (cached && date > cached.date) {
+      // console.log("storing cache");
+      await getDB().then((db) =>
+        db.put("histories", { ...cached, location, date }, key),
+      );
+    }
+
+    // console.log("using api data");
+    return { location, date };
+  } catch (err) {
+    // console.log("using cached data", cached);
+    return cached;
+  }
+}
+
+export async function saveHistory(
+  key: string,
+  data: {
+    name: string;
+    metadata?: any;
+    cover?: string | null;
+    location: BookRelocate;
+  },
+) {
+  const date = new Date();
+  return Promise.all([
+    getDB().then((db) =>
+      db.put(
+        "histories",
+        {
+          key,
+          name: data.name,
+          cover: data.cover,
+          location: { ...data.location, range: {} },
+          date: new Date(),
+        },
+        key,
+      ),
+    ),
+    api.PUT("/library/progress", {
+      body: { key, location, date: date.toISOString() },
+    }),
+  ]);
 }

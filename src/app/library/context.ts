@@ -4,7 +4,7 @@ let library: LibraryItems = [];
 
 export async function rescanLibrary() {
   try {
-    const res = await scanLibrary([process.cwd() + "/data"]);
+    const res = await scanLibrary([process.env.DATA_PATH || "./data"]);
     library = res;
   } catch (err) {
     console.error("Cannot scan library!", err);

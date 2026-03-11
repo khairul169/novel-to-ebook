@@ -265,6 +265,8 @@ export interface paths {
                             name: string;
                             path: string;
                             fullPath: string;
+                            parent: string;
+                            cover?: string | null;
                             isDirectory: boolean;
                             /**
                              * @example {
@@ -393,7 +395,6 @@ export interface paths {
                     content: {
                         "application/json": {
                             key: string;
-                            fraction: number;
                             /** Format: date */
                             date: string;
                         }[];
@@ -434,7 +435,6 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            fraction: number;
                             location: unknown;
                             /** Format: date */
                             date: string;
@@ -454,8 +454,9 @@ export interface paths {
                 content: {
                     "application/json": {
                         key: string;
-                        fraction: number;
                         location: unknown;
+                        /** Format: date */
+                        date: string;
                     };
                 };
             };

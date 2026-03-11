@@ -5,6 +5,8 @@ export const LibraryItemSchema = z.object({
   name: z.string(),
   path: z.string(),
   fullPath: z.string(),
+  parent: z.string(),
+  cover: z.string().nullish(),
   isDirectory: z.boolean(),
   metadata: z
     .record(z.string(), z.string())

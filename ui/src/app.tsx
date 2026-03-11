@@ -3,7 +3,16 @@ import Router from "./router";
 import { useStore } from "zustand";
 import { appStore } from "./stores/app.store";
 
-const ThemeProvider = () => {
+export default function App() {
+  return (
+    <>
+      <Router />
+      <ThemeProvider />
+    </>
+  );
+}
+
+function ThemeProvider() {
   const theme = useStore(appStore, (i) => i.theme);
 
   useEffect(() => {
@@ -18,13 +27,4 @@ const ThemeProvider = () => {
   }, [theme]);
 
   return null;
-};
-
-export default function App() {
-  return (
-    <>
-      <Router />
-      <ThemeProvider />
-    </>
-  );
 }

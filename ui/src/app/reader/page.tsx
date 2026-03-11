@@ -7,11 +7,23 @@ import React, {
   useState,
 } from "react";
 import type { BookDoc, BookRelocate, FoliateView } from "./lib/types";
-import { Link, useSearchParams } from "react-router";
-import api, { API_URL } from "@/lib/api";
-import { getCSS, injectAdditionalLinks, type ReaderStyles } from "./lib/utils";
+import { useSearchParams } from "react-router";
+import {
+  getCSS,
+  getHistory,
+  injectAdditionalLinks,
+  saveHistory,
+  type ReaderStyles,
+} from "./lib/utils";
 import { Button } from "@/components/ui/button";
-import { Loader2, MoonIcon, PanelLeftIcon, SunIcon, XIcon } from "lucide-react";
+import {
+  ClockIcon,
+  Loader2,
+  MoonIcon,
+  PanelLeftIcon,
+  SunIcon,
+  XIcon,
+} from "lucide-react";
 import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
 import Sidebar from "./components/sidebar";
@@ -19,6 +31,8 @@ import { settingsStore, sidebarStore } from "./lib/stores";
 import { useStore } from "zustand";
 import { appStore, setAppTheme } from "@/stores/app.store";
 import { useReaderTheme } from "./lib/hooks";
+import BackButton from "@/components/ui/back-button";
+import { getBookData } from "@/hooks/use-offline";
 
 export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
@@ -54,14 +68,17 @@ export default function ReaderPage() {
     headerRef.current?.addDocListener(doc);
   };
 
-  const onRelocate = async (e: Event) => {
+  const onRelocate = async (e: Event, book: BookDoc) => {
     if (!isRestoredRef.current) return;
 
     const detail = (e as CustomEvent).detail;
     setCurState(detail);
     console.log("store progress..", detail.fraction);
-    api.PUT("/library/progress", {
-      body: { key: bookKey, fraction: detail.fraction, location: detail },
+
+    saveHistory(bookKey, {
+      location: detail,
+      name: book?.metadata?.title || bookKey.split("/").pop() || "",
+      cover: "/library/cover.jpeg?key=" + encodeURIComponent(bookKey),
     });
   };
 
@@ -111,13 +128,17 @@ export default function ReaderPage() {
 
     try {
       console.log("Fetching read progress..");
-      const { data: progress } = await api.GET("/library/progress", {
-        params: { query: { key: bookKey } },
-      });
-      const lastLocation: any = progress?.location;
-      view.init({ lastLocation: lastLocation.cfi });
-      setCurState(lastLocation);
+      const progress = await getHistory(bookKey);
+      const lastLocation = progress?.location;
+
+      if (lastLocation) {
+        view.init({ lastLocation: lastLocation.cfi });
+        setCurState(lastLocation);
+      } else {
+        setCurState({ fraction: 0 } as never);
+      }
     } catch (err) {
+      view.renderer.next();
       setCurState({ fraction: 0 } as never);
       console.error(err);
     } finally {
@@ -127,7 +148,7 @@ export default function ReaderPage() {
     }
 
     view.addEventListener("load", onDocLoad);
-    view.addEventListener("relocate", onRelocate);
+    view.addEventListener("relocate", (e) => onRelocate(e, book));
 
     const { book } = view;
     setCurBook(book);
@@ -140,22 +161,12 @@ export default function ReaderPage() {
 
     // enable animation
     view.renderer.setAttribute("animated", "true");
-
-    // start render
-    // view.renderer.next();
   };
 
   useEffect(() => {
     const fetchBook = async () => {
-      const res = await fetch(API_URL + "/library/get?key=" + bookKey);
-      if (!res.ok) throw new Error(res.statusText);
-
-      const blob = await res.blob();
-      const disposition = res.headers.get("content-disposition");
-      const filename = disposition
-        ? disposition.split("filename=")[1]?.replace(/"/g, "")
-        : "book.epub";
-      openDoc(new File([blob], filename));
+      const file = await getBookData(bookKey);
+      openDoc(file);
     };
 
     if (!loadingRef.current) {
@@ -192,10 +203,7 @@ export default function ReaderPage() {
 
         <div
           className="px-6 pb-4 flex items-center text-foreground/60 gap-4 text-xs hover:text-foreground/80 transition-colors"
-          style={{
-            background: settings.styles.theme?.[theme]?.background,
-            color: settings.styles.theme?.[theme]?.color,
-          }}
+          style={{ background: settings.styles.theme?.[theme]?.background }}
         >
           <p className="truncate max-w-2xl text-sm">
             {curState?.tocItem?.label || curBook?.metadata?.title || ""}
@@ -203,8 +211,8 @@ export default function ReaderPage() {
           <div className="flex-1" />
           <Time />
           <span>&middot;</span>
-          {curState && (
-            <p className="text-right">{`${curState?.location.current} / ${curState?.location.total} (${Math.round((curState?.location.current / curState?.location.total) * 100)}%)`}</p>
+          {curState?.location && (
+            <p className="text-right">{`${curState?.location.current} / ${curState?.location.total} (${(curState?.fraction * 100).toFixed(1)}%)`}</p>
           )}
         </div>
       </div>
@@ -309,16 +317,14 @@ const Header = ({
       >
         {theme === "dark" ? <SunIcon /> : <MoonIcon />}
       </Button>
-      <Button
-        asChild
+      <BackButton
+        to="/"
         variant="secondary"
         className="rounded-full"
         size="icon-lg"
       >
-        <Link to="/" replace>
-          <XIcon />
-        </Link>
-      </Button>
+        <XIcon />
+      </BackButton>
     </div>
   );
 };
@@ -329,9 +335,14 @@ const Time = () => {
   useEffect(() => {
     const interval = setInterval(() => {
       setTime(dayjs().format("HH:mm"));
-    }, 1000);
+    }, 60 * 1000);
     return () => clearInterval(interval);
   }, []);
 
-  return <p>{time}</p>;
+  return (
+    <p>
+      <ClockIcon className="inline mr-1" size={14} />
+      {time}
+    </p>
+  );
 };

@@ -4,24 +4,23 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { $api, API_URL } from "@/lib/api";
-import { ScanTextIcon, SearchIcon } from "lucide-react";
+import { API_URL } from "@/lib/api";
+import { ArrowLeftIcon, ScanTextIcon, SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
-import { Link } from "react-router";
+import { Link, useSearchParams } from "react-router";
+import { getLibraryTitle } from "./lib/utils";
+import { cn } from "@/lib/utils";
+import { useOfflineApiQuery } from "@/hooks/use-offline";
+import OfflineImage from "@/components/offline-image";
+import { useHistories } from "./lib/hooks";
+import type { BookRelocate } from "../reader/lib/types";
 
 export default function LibraryPage() {
   const [search, setSearch] = useState("");
-  const { data: history } = $api.useQuery("get", "/library/history");
-  const { data: books } = $api.useQuery("get", "/library");
-
-  const items = useMemo(() => {
-    if (search) {
-      return books?.filter((b) =>
-        b.name?.toLowerCase().includes(search.toLowerCase()),
-      );
-    }
-    return books;
-  }, [books, search]);
+  const { data: history } = useHistories();
+  const { data: books } = useOfflineApiQuery("get", "/library");
+  const [searchParams] = useSearchParams();
+  const baseDir = searchParams.get("dir") || "";
 
   return (
     <div className="min-h-screen bg-background">
@@ -44,68 +43,117 @@ export default function LibraryPage() {
         </Button>
       </div>
 
-      {!search && history && history.length > 0 && (
+      {!search && !baseDir && history && history.length > 0 && (
         <>
           <h2 className="font-medium text-xl mx-6 mt-10">Continue Reading</h2>
-          <LibraryList books={history} />
+          <LibraryList items={history} />
         </>
       )}
 
-      <h2 className="font-medium text-xl mx-6 mt-10">Your Library</h2>
-      <LibraryList books={items} />
+      {search || baseDir ? (
+        <Button
+          asChild
+          variant="ghost"
+          className="ml-2 mt-6"
+          onClick={() => setSearch("")}
+        >
+          <Link to="/">
+            <ArrowLeftIcon className="size-6" />
+          </Link>
+        </Button>
+      ) : null}
+
+      <h2
+        className={cn(
+          "font-medium text-xl mx-6 mt-10",
+          search || baseDir ? "text-3xl mt-2" : "",
+        )}
+      >
+        {getLibraryTitle({ search, baseDir })}
+      </h2>
+      <LibraryList items={books} search={search} baseDir={baseDir} />
     </div>
   );
 }
 
-type Book = {
+type LibraryItem = {
   key: string;
-  fraction?: number;
+  location?: BookRelocate;
   name?: string;
   metadata?: any;
+  cover?: string | null;
+  parent?: string | null;
+  isDirectory?: boolean;
 };
 
-const LibraryList = ({ books }: { books?: Book[] }) => {
+const LibraryList = ({
+  items,
+  search,
+  baseDir,
+}: {
+  items?: LibraryItem[];
+  search?: string | null;
+  baseDir?: string | null;
+}) => {
+  const filtered = useMemo(() => {
+    let res = items || [];
+    if (baseDir !== null) {
+      res = res.filter((i) => i.parent === baseDir);
+    }
+    if (search) {
+      res = res.filter((i) =>
+        i.name?.toLowerCase().includes(search.toLowerCase()),
+      );
+    }
+    return res;
+  }, [items, search, baseDir]);
+
   return (
     <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] p-2">
-      {books?.map((book) => (
-        <a
-          key={book.key}
-          href={`/reader/?book=${encodeURI(book.key)}`}
+      {filtered?.map((item) => (
+        <Link
+          key={item.key}
+          to={
+            item.isDirectory
+              ? `/?dir=${item.key}`
+              : `/reader/?book=${encodeURI(item.key)}`
+          }
           className="text-foreground p-4 hover:bg-secondary"
+          title={item.metadata?.title || item.name}
         >
           <div className="w-full aspect-3/4 bg-background relative overflow-hidden">
             <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
               <p className="text-md line-clamp-3">
-                {book.metadata?.title || book.name}
+                {item.metadata?.title || item.name}
               </p>
               <p className="text-sm mt-2 opacity-50">
-                {book.metadata?.creator}
+                {item.metadata?.creator}
               </p>
             </div>
 
-            <img
-              src={`${API_URL}/library/cover.jpeg?key=${book.key}`}
-              alt={book.name}
+            <OfflineImage
+              src={API_URL + item.cover}
+              alt={item.name}
               className="absolute z-1 inset-0 w-full h-full object-cover rounded overflow-hidden shadow"
               onError={(e) => {
                 e.currentTarget.style.display = "none";
               }}
             />
 
-            {book.fraction && (
+            {item.location?.fraction && (
               <div className="absolute z-2 bottom-0 left-0 w-full bg-background/20 flex items-center justify-between">
                 <div
                   className="bg-green-500 h-0.75"
-                  style={{ width: `${book.fraction * 100}%` }}
+                  style={{ width: `${item.location.fraction * 100}%` }}
                 />
               </div>
             )}
           </div>
 
           <div className="line-clamp-2 mt-2 text-xs font-medium">
-            {book.metadata?.title || book.name}
+            {item.metadata?.title || item.name}
           </div>
-        </a>
+        </Link>
       ))}
     </div>
   );

@@ -13,6 +13,7 @@ import { getLibrary } from "./context";
 import z from "zod";
 import db from "../../db";
 import { sql } from "kysely";
+import { getCoverUrl } from "./utils";
 
 const router = new Hono();
 
@@ -48,11 +49,12 @@ router.get(
       throw new HTTPError("Library item not found", { status: 404 });
     }
 
-    const file = await fs.readFile(item.fullPath);
-
-    return c.body(file, 200, {
-      "Content-Type": "application/epub+zip",
-      "Content-Disposition": `attachment; filename="${item.name}.epub"`,
+    const file = Bun.file(item.fullPath);
+    return new Response(file, {
+      headers: {
+        "Content-Type": "application/epub+zip",
+        "Content-Disposition": `attachment; filename="${item.name}"`,
+      },
     });
   },
 );
@@ -92,7 +94,6 @@ router.get(
       200: z
         .object({
           key: z.string(),
-          fraction: z.number(),
           date: z.iso.date(),
         })
         .array(),
@@ -101,20 +102,24 @@ router.get(
   async (c) => {
     const libraries = getLibrary();
     const res = await db
-      .selectFrom("read_history")
+      .selectFrom("histories")
       .selectAll()
       .limit(10)
-      .orderBy("updatedAt", "desc")
+      .orderBy("date", "desc")
       .execute();
 
     const items = res
-      .map((i) => ({
-        key: i.key,
-        fraction: Number(i.fraction),
-        date: i.updatedAt,
-        metadata: libraries.find((l) => l.key === i.key && !l.isDirectory)
-          ?.metadata,
-      }))
+      .map((i) => {
+        const libItem = libraries.find(
+          (l) => l.key === i.key && !l.isDirectory,
+        );
+        return {
+          key: i.key,
+          date: i.date,
+          metadata: libItem?.metadata,
+          cover: libItem?.cover,
+        };
+      })
       .filter((i) => !!i.metadata);
 
     return c.var.res(items);
@@ -129,7 +134,6 @@ router.get(
     },
     responses: {
       200: z.object({
-        fraction: z.number(),
         location: z.any(),
         date: z.iso.date(),
       }),
@@ -143,16 +147,15 @@ router.get(
     }
 
     const progress = await db
-      .selectFrom("read_history")
+      .selectFrom("histories")
       .selectAll()
       .where("key", "=", key)
       .limit(1)
-      .orderBy("createdAt", "desc")
+      .orderBy("date", "desc")
       .executeTakeFirstOrThrow();
 
     return c.var.res({
-      fraction: Number(progress.fraction),
-      date: progress.updatedAt,
+      date: progress.date,
       location: JSON.parse(progress.location),
     });
   },
@@ -164,8 +167,8 @@ router.put(
     request: {
       json: z.object({
         key: z.string().min(1),
-        fraction: z.number(),
         location: z.any(),
+        date: z.iso.datetime(),
       }),
     },
     responses: {
@@ -173,24 +176,22 @@ router.put(
     },
   }),
   async (c) => {
-    const { key, fraction, location } = c.req.valid("json");
+    const { key, location, date } = c.req.valid("json");
     const item = getLibrary().find((i) => i.key === key && !i.isDirectory);
     if (!item) {
       throw new HTTPError("Library item not found", { status: 404 });
     }
 
     await db
-      .insertInto("read_history")
+      .insertInto("histories")
       .values({
         key,
-        fraction: String(fraction),
         location: JSON.stringify(location),
       })
       .onConflict((oc) =>
         oc.column("key").doUpdateSet({
-          fraction: String(fraction),
           location: JSON.stringify(location),
-          updatedAt: sql`CURRENT_TIMESTAMP`,
+          date,
         }),
       )
       .execute();

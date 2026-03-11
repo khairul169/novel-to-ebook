@@ -5,8 +5,8 @@ import { ArrowLeftIcon, PinIcon, PinOffIcon } from "lucide-react";
 import { useStore } from "zustand";
 import { sidebarStore } from "../lib/stores";
 import { useEffect, useRef } from "react";
-import { Link } from "react-router";
 import { useReaderTheme } from "../lib/hooks";
+import BackButton from "@/components/ui/back-button";
 
 type Props = {
   book?: BookDoc | null;
@@ -70,11 +70,9 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
 
         <div className="w-full h-full flex flex-col items-stretch">
           <div className="flex items-center justify-between p-1 pb-0">
-            <Button variant="ghost" size="icon-sm" asChild>
-              <Link to="/" replace>
-                <ArrowLeftIcon />
-              </Link>
-            </Button>
+            <BackButton to="/" variant="ghost" size="icon-sm">
+              <ArrowLeftIcon />
+            </BackButton>
             <div className="flex-1" />
             <Button
               variant="ghost"
