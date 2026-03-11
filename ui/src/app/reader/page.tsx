@@ -8,10 +8,10 @@ import React, {
 } from "react";
 import type { BookDoc, BookRelocate, FoliateView } from "./lib/types";
 import { Link, useSearchParams } from "react-router";
-import { API_URL } from "@/lib/api";
+import api, { API_URL } from "@/lib/api";
 import { getCSS, injectAdditionalLinks, type ReaderStyles } from "./lib/utils";
 import { Button } from "@/components/ui/button";
-import { MoonIcon, PanelLeftIcon, SunIcon, XIcon } from "lucide-react";
+import { Loader2, MoonIcon, PanelLeftIcon, SunIcon, XIcon } from "lucide-react";
 import dayjs from "dayjs";
 import { cn } from "@/lib/utils";
 import Sidebar from "./components/sidebar";
@@ -24,6 +24,7 @@ export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<FoliateView | null>(null);
   const loadingRef = useRef(false);
+  const isRestoredRef = useRef(false);
   const headerRef = useRef<HeaderRef>(null!);
 
   const [searchParams] = useSearchParams();
@@ -41,17 +42,27 @@ export default function ReaderPage() {
     [theme, settings],
   );
 
-  const onDocLoad = (e: Event) => {
+  const onDocLoad = async (e: Event) => {
     const detail = (e as CustomEvent).detail;
     const doc = detail?.doc;
+    if (!doc) return;
 
-    if (doc) {
-      injectAdditionalLinks(doc);
+    injectAdditionalLinks(doc);
 
-      doc.addEventListener("keydown", onKeyDown);
-      doc.addEventListener("wheel", onWheel);
-      headerRef.current?.addDocListener(doc);
-    }
+    doc.addEventListener("keydown", onKeyDown);
+    doc.addEventListener("wheel", onWheel);
+    headerRef.current?.addDocListener(doc);
+  };
+
+  const onRelocate = async (e: Event) => {
+    if (!isRestoredRef.current) return;
+
+    const detail = (e as CustomEvent).detail;
+    setCurState(detail);
+    console.log("store progress..", detail.fraction);
+    api.PUT("/library/progress", {
+      body: { key: bookKey, fraction: detail.fraction, location: detail },
+    });
   };
 
   const onWheel = (e: WheelEvent) => {
@@ -95,11 +106,28 @@ export default function ReaderPage() {
     viewRef.current = view;
     containerRef.current.append(view);
 
+    isRestoredRef.current = false;
     await view.open(file as unknown as BookDoc);
+
+    try {
+      console.log("Fetching read progress..");
+      const { data: progress } = await api.GET("/library/progress", {
+        params: { query: { key: bookKey } },
+      });
+      const lastLocation: any = progress?.location;
+      view.init({ lastLocation: lastLocation.cfi });
+      setCurState(lastLocation);
+    } catch (err) {
+      setCurState({ fraction: 0 } as never);
+      console.error(err);
+    } finally {
+      setTimeout(() => {
+        isRestoredRef.current = true;
+      }, 1000);
+    }
+
     view.addEventListener("load", onDocLoad);
-    view.addEventListener("relocate", (e: any) => {
-      setCurState(e.detail);
-    });
+    view.addEventListener("relocate", onRelocate);
 
     const { book } = view;
     setCurBook(book);
@@ -114,7 +142,7 @@ export default function ReaderPage() {
     view.renderer.setAttribute("animated", "true");
 
     // start render
-    view.renderer.next();
+    // view.renderer.next();
   };
 
   useEffect(() => {
@@ -144,7 +172,13 @@ export default function ReaderPage() {
   }, [styles]);
 
   return (
-    <div className="bg-background h-screen-dvh overflow-hidden flex flex-row items-stretch">
+    <div className="bg-background h-screen-dvh overflow-hidden flex flex-row items-stretch relative">
+      {!curState && (
+        <div className="absolute inset-0 bg-black/80 w-full h-full z-5 flex items-center justify-center">
+          <Loader2 className="animate-spin" size={32} />
+        </div>
+      )}
+
       <Sidebar
         book={curBook}
         curState={curState}
@@ -246,7 +280,7 @@ const Header = ({
   return (
     <div
       className={cn(
-        "absolute top-0 left-0 w-full z-1 px-3 h-14 text-foreground flex items-center gap-2 bg-background transition-all -translate-y-full opacity-0",
+        "absolute top-0 left-0 w-full z-8 px-3 h-14 text-foreground flex items-center gap-2 bg-background transition-all -translate-y-full opacity-0",
         isSticky || isVisible ? "translate-y-0 opacity-100" : "",
       )}
       style={{

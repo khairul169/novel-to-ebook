@@ -1,0 +1,8 @@
+{
+     "files.exclude": {
+        "**/ui/src/lib/foliate-js": true
+    },
+    "search.exclude": {
+        "**/ui/src/lib/foliate-js": true
+    }
+}

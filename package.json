@@ -6,15 +6,20 @@
   "scripts": {
     "start": "bun run src/index.ts",
     "dev:server": "bun --watch run src/index.ts",
-    "dev:client": "cd ui && npm run dev -- --host",
-    "dev": "concurrently \"npm:dev:server\" \"npm:dev:client\""
+    "dev:ui": "cd ui && npm run dev -- --host",
+    "dev": "concurrently \"npm:dev:server\" \"npm:dev:ui\"",
+    "typegen": "npm run typegen:server && npm run typegen:ui",
+    "typegen:server": "kysely-codegen --dialect bun-sqlite --out-file src/db/types.d.ts",
+    "typegen:ui": "cd ui && npm run typegen"
   },
   "devDependencies": {
     "@types/bun": "latest",
     "@types/epub-gen": "^0.1.2",
     "@types/jsdom": "^28.0.0",
     "@types/sanitize-html": "^2.16.0",
-    "concurrently": "^9.2.1"
+    "better-sqlite3": "^12.6.2",
+    "concurrently": "^9.2.1",
+    "kysely-codegen": "^0.20.0"
   },
   "peerDependencies": {
     "typescript": "^5"
@@ -30,6 +35,8 @@
     "hono": "^4.12.5",
     "hono-zod-openapi": "^1.1.1",
     "jsdom": "^28.1.0",
+    "kysely": "^0.28.11",
+    "kysely-bun-worker": "^1.2.1",
     "puppeteer": "^24.38.0",
     "puppeteer-extra": "^3.3.6",
     "puppeteer-extra-plugin-block-resources": "^2.4.3",

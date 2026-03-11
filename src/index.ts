@@ -7,6 +7,7 @@ import { Scalar } from "@scalar/hono-api-reference";
 import extract from "./app/extract/routes";
 import library from "./app/library/routes";
 import { initScheduler } from "./scheduler";
+import { runMigration } from "./db/migrate";
 
 const app = new Hono();
 
@@ -63,6 +64,7 @@ const PORT = process.env.PORT || 3000;
 console.log(`Listening on http://localhost:${PORT}`);
 
 initScheduler();
+runMigration();
 
 Bun.serve({
   fetch: app.fetch,

@@ -88,6 +88,7 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
           <div className="p-1 overflow-y-auto flex-1">
             {book?.toc?.map((item) => (
               <Button
+                key={item.href}
                 variant={
                   curState?.tocItem?.href === item.href ? "secondary" : "ghost"
                 }

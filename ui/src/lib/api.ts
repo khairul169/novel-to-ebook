@@ -29,4 +29,13 @@ export type JsonBody<
   ? B
   : never;
 
+export type JsonRes<
+  P extends keyof paths,
+  M extends keyof paths[P],
+> = paths[P][M] extends {
+  responses: { "200": { content: { "application/json": infer B } } };
+}
+  ? B
+  : never;
+
 export default api;
