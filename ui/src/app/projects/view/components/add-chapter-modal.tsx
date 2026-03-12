@@ -13,7 +13,7 @@ import api, { $api, invalidateQuery, type JsonBody } from "@/lib/api";
 import { createDisclosure } from "@/lib/store";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { BookSearchIcon, LinkIcon, NotebookPenIcon } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import { useProjectContext } from "../lib/context";
@@ -43,6 +43,7 @@ export default function AddChapterModal() {
     defaultValues: { type: null },
   });
   const type = useWatch({ control: form.control, name: "type" });
+  const [isPending, setPending] = useState(false);
 
   const create = $api.useMutation("post", "/projects/{projectId}/chapters", {
     onSuccess() {
@@ -64,6 +65,8 @@ export default function AddChapterModal() {
     const body: CreateChapterBody = { title: "", content: "", index: 0 };
 
     try {
+      setPending(true);
+
       if (values.type === "empty") {
         body.title = values.title;
       }
@@ -84,6 +87,8 @@ export default function AddChapterModal() {
       create.mutate({ params: { path: { projectId: project.id } }, body });
     } catch (err) {
       toast.error((err as Error).message);
+    } finally {
+      setPending(false);
     }
   });
 
@@ -154,7 +159,9 @@ export default function AddChapterModal() {
 
             {type != null && (
               <DialogFooter className="mt-4">
-                <Button type="submit">Save</Button>
+                <Button type="submit" disabled={isPending || create.isPending}>
+                  Save
+                </Button>
               </DialogFooter>
             )}
           </form>

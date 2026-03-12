@@ -1,8 +1,11 @@
 import { $api, invalidateQuery, type JsonBody } from "@/lib/api";
 import { useProjectContext } from "../lib/context";
-import { useDebounceFn } from "@/hooks/use-debounce";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { toast } from "sonner";
+import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap";
+import useMinimalTiptapEditor from "@/components/ui/minimal-tiptap/hooks/use-minimal-tiptap";
+import { useStore } from "zustand";
+import { tabStore } from "../lib/stores";
 
 type Props = {
   id: string;
@@ -10,7 +13,7 @@ type Props = {
 
 export default function ChapterEditor({ id }: Props) {
   const { project } = useProjectContext();
-  const inputRef = useRef<HTMLTextAreaElement>(null!);
+  const curTab = useStore(tabStore, (i) => i.curTab);
 
   const { data: chapter } = $api.useQuery(
     "get",
@@ -22,37 +25,47 @@ export default function ChapterEditor({ id }: Props) {
     "/projects/{projectId}/chapters/{id}",
   );
 
-  const update = useDebounceFn(
-    (values: JsonBody<"/projects/{projectId}/chapters/{id}", "put">) =>
-      updateMutation.mutate(
-        {
-          params: { path: { projectId: project.id, id } },
-          body: values,
+  const update = (
+    values: JsonBody<"/projects/{projectId}/chapters/{id}", "put">,
+  ) => {
+    updateMutation.mutate(
+      {
+        params: { path: { projectId: project.id, id } },
+        body: values,
+      },
+      {
+        onSuccess() {
+          invalidateQuery("/projects/{projectId}/chapters");
         },
-        {
-          onSuccess() {
-            invalidateQuery("/projects/{projectId}/chapters");
-          },
-          onError(err) {
-            toast.error((err as Error).message);
-          },
+        onError(err) {
+          toast.error((err as Error).message);
         },
-      ),
-    500,
-  );
+      },
+    );
+  };
+
+  const editor = useMinimalTiptapEditor({
+    onUpdate: (e) => update({ content: e as string }),
+    throttleDelay: 3000,
+    autofocus: true,
+    editable: true,
+    editorClassName: "focus:outline-hidden min-h-[500px] pb-32",
+    output: "html",
+    placeholder: "...",
+  });
 
   useEffect(() => {
-    if (id) {
-      inputRef.current.focus();
-      inputRef.current.value = chapter?.content || "";
+    if (chapter?.id) {
+      editor?.commands.setContent(chapter.content || "");
+      editor?.commands.focus();
     }
-  }, [id, chapter?.content]);
+  }, [id, curTab, chapter?.id]);
 
   return (
-    <textarea
-      ref={inputRef}
-      className="w-full flex-1 outline-0 p-4"
-      onChange={(e) => update({ content: e.target.value })}
+    <MinimalTiptapEditor
+      editor={editor}
+      className="w-full flex-1 flex-col overflow-hidden ring-0! border-0!"
+      editorContentClassName="p-8 flex-1 overflow-auto"
     />
   );
 }

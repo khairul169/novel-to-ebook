@@ -29,7 +29,7 @@ export default function ProjectViewPage() {
           </BackButton>
         </div>
 
-        <div className="flex-1 flex items-stretch">
+        <div className="flex-1 flex items-stretch overflow-hidden">
           {project != null && <Sidebar />}
 
           <MainTabs />

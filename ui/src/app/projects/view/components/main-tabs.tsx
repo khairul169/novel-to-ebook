@@ -14,7 +14,7 @@ export default function MainTabs() {
   }
 
   return (
-    <div className="flex-1 flex flex-col items-stretch">
+    <div className="flex-1 flex flex-col items-stretch overflow-hidden">
       <div className="flex items-center overflow-x-auto border-b">
         {tabs.map((tab) => (
           <button
