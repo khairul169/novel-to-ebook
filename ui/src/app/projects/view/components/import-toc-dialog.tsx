@@ -93,7 +93,7 @@ export default function ImportTOCDialog({
       if (!/^https?:\/\//i.test(target)) target = "https://" + target;
 
       let res: any = null;
-      await streamSSE("/extract/snapshot", "post", {
+      await streamSSE("/projects/snapshot", "post", {
         body: {
           url: target,
           width: previewRef.current.offsetWidth,

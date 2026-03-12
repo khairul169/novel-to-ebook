@@ -1,5 +1,5 @@
 import React from "react";
-import type { Action } from "backend/app/extract/schema";
+import type { Action } from "backend/app/projects/schema";
 import {
   Select,
   SelectContent,

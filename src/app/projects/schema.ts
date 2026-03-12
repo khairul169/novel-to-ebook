@@ -97,6 +97,32 @@ export type Action = z.infer<typeof ActionSchema>;
 
 ///////////////////////////
 
+export const ProjectSchema = z.object({
+  id: z.uuidv7(),
+  title: z.string(),
+  author: z.string(),
+  cover: z.string(),
+  config: z.any().nullish(),
+  language: z.string(),
+  createdAt: z.iso.datetime(),
+  updatedAt: z.iso.datetime(),
+});
+
+export const CreateProjectReqSchema = ProjectSchema.pick({
+  title: true,
+  author: true,
+});
+
+export const CreateProjectResSchema = ProjectSchema.pick({ id: true });
+
+export const UpdateProjectReqSchema = ProjectSchema.omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+}).partial();
+
+////////////////////
+
 export const SnapshotRequestSchema = z.object({
   url: z.string().min(1, { message: "url is required" }),
   width: z.number().optional(),

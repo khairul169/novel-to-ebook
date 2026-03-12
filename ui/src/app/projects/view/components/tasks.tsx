@@ -2,7 +2,7 @@ import { Field, FieldLabel } from "@/components/ui/field";
 import { Label } from "@/components/ui/label";
 import { Progress } from "@/components/ui/progress";
 import { streamSSE } from "@/lib/sse";
-import type { Task } from "backend/app/extract/context";
+import type { Task } from "backend/app/projects/context";
 import { useEffect, useState } from "react";
 
 export default function Tasks() {
@@ -11,7 +11,7 @@ export default function Tasks() {
   useEffect(() => {
     const controller = new AbortController();
 
-    streamSSE("/extract/tasks", "get", {
+    streamSSE("/projects/tasks", "get", {
       signal: controller.signal,
       onMessage: (event, data) => {
         if (event === "tasks") setTasks(data);

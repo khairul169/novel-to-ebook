@@ -5,7 +5,7 @@ import {
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { API_URL } from "@/lib/api";
-import { ArrowLeftIcon, ScanTextIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { useMemo, useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getLibraryTitle } from "./lib/utils";
@@ -37,8 +37,8 @@ export default function LibraryPage() {
         </InputGroup>
         <div className="flex-1" />
         <Button asChild>
-          <Link to="/extract">
-            <ScanTextIcon /> Extract
+          <Link to="/projects">
+            <PlusIcon /> Create
           </Link>
         </Button>
       </div>

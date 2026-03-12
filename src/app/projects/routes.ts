@@ -1,14 +1,18 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
 import fs from "fs/promises";
-import { translate, waitFor } from "../../lib/utils";
+import { translate, uuid, waitFor } from "../../lib/utils";
 import {
   ActionSchema,
+  CreateProjectReqSchema,
+  CreateProjectResSchema,
   ExtractRequestSchema,
   ExtractResponseSchema,
+  ProjectSchema,
   SnapshotRequestSchema,
   TranslateRequestSchema,
   TranslateResponseSchema,
+  UpdateProjectReqSchema,
 } from "./schema";
 import { execActions, newBrowserPage } from "../../lib/browser";
 import type { Page } from "puppeteer";
@@ -21,20 +25,197 @@ import {
   fetchImage,
   findContentSelector,
   getCleanHTML,
-  getSelector,
 } from "./utils";
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
 import { rescanLibrary } from "../library/context";
 import path from "path";
+import db from "../../db";
+import chapters from "./chapters/routes";
+import { HTTPError } from "../../lib/error";
+import * as cheerio from "cheerio";
 
 const router = new Hono();
+
+// Sub routes
+router.route("/:projectId/chapters", chapters);
+
+// Create new project
+router.post(
+  "/",
+  openApi({
+    tags: ["Projects"],
+    summary: "Create new project",
+    request: { json: CreateProjectReqSchema },
+    responses: { 200: CreateProjectResSchema },
+  }),
+  async (c) => {
+    const body = c.req.valid("json");
+
+    const res = await db
+      .insertInto("projects")
+      .values({ ...body, id: uuid() })
+      .returning("id")
+      .executeTakeFirstOrThrow();
+
+    return c.var.res(res);
+  },
+);
+
+// List project
+router.get(
+  "/",
+  openApi({
+    tags: ["Projects"],
+    summary: "List projects",
+    responses: { 200: z.array(ProjectSchema) },
+  }),
+  async (c) => {
+    const res = await db
+      .selectFrom("projects")
+      .selectAll()
+      .orderBy("updatedAt", "desc")
+      .execute();
+    return c.var.res(res);
+  },
+);
+
+// Get project
+router.get(
+  "/:id",
+  openApi({
+    tags: ["Projects"],
+    summary: "Get project by id",
+    request: { param: z.object({ id: z.string() }) },
+    responses: { 200: ProjectSchema },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const res = await db
+      .selectFrom("projects")
+      .selectAll()
+      .where("id", "=", id)
+      .executeTakeFirstOrThrow();
+
+    return c.var.res({
+      ...res,
+      config: res.config ? JSON.parse(res.config) : null,
+    });
+  },
+);
+
+// Delete project
+router.delete(
+  "/:id",
+  openApi({
+    tags: ["Projects"],
+    summary: "Delete project",
+    request: { param: z.object({ id: z.string() }) },
+    responses: { 204: { description: "No content" } },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    await db.deleteFrom("projects").where("id", "=", id).execute();
+    return c.body(null, 204);
+  },
+);
+
+// Update project
+router.put(
+  "/:id",
+  openApi({
+    tags: ["Projects"],
+    summary: "Update project",
+    request: {
+      param: z.object({ id: z.string() }),
+      json: UpdateProjectReqSchema,
+    },
+    responses: { 200: ProjectSchema },
+  }),
+  async (c) => {
+    const { id } = c.req.valid("param");
+    const values = c.req.valid("json");
+
+    if (values.config) {
+      values.config = JSON.stringify(values.config);
+    }
+
+    const res = await db
+      .updateTable("projects")
+      .set(values)
+      .where("id", "=", id)
+      .returningAll()
+      .executeTakeFirstOrThrow();
+
+    return c.var.res({
+      ...res,
+      config: values.config,
+    });
+  },
+);
+
+// Extract content from url
+router.post(
+  "/extract",
+  openApi({
+    tags: ["Projects"],
+    summary: "Extract content from url",
+    request: {
+      json: z.object({
+        url: z.url(),
+        selectors: z.object({ content: z.string().nullish() }).nullish(),
+      }),
+    },
+    responses: {
+      200: z.object({
+        title: z.string(),
+        chapter: z.string(),
+        content: z.string(),
+        selectors: z.object({
+          content: z.string().nullish(),
+          chapter: z.string().nullish(),
+        }),
+      }),
+    },
+  }),
+  async (c) => {
+    const { url, selectors } = c.req.valid("json");
+
+    let page: Page | null = null;
+
+    try {
+      page = await newBrowserPage();
+      await page.setViewport({ width: 640, height: 480 });
+      await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+      const [title, html] = await Promise.all([
+        page.evaluate(() => document.title),
+        page.evaluate(getCleanHTML),
+      ]);
+
+      const selectors = findContentSelector(html);
+      const contentSelector = selectors?.selector || null;
+      const chapterSelector = selectors?.titleSelector || null;
+
+      return c.var.res({
+        title,
+        chapter: selectors?.title || "",
+        content: selectors?.html || "",
+        selectors: { content: contentSelector, chapter: chapterSelector },
+      });
+    } catch (err) {
+      console.error(err);
+      throw new HTTPError("Error extracting content", { status: 400 });
+    } finally {
+      if (page) await page.close();
+    }
+  },
+);
 
 // Get web snapshot and elements
 router.post(
   "/snapshot",
   openApi({
-    tags: ["Extract"],
+    tags: ["Projects"],
     summary: "Get web snapshot and elements",
     request: {
       json: SnapshotRequestSchema,
@@ -109,7 +290,7 @@ router.post(
         ssInterval && clearInterval(ssInterval);
         await sendScreenshot(70, isFullPage);
 
-        // Extract element tree for selector building
+        // Projects element tree for selector building
         const elements = await page.evaluate(
           extractElements,
           body.ignoreDuplicates,
@@ -141,9 +322,9 @@ router.post(
 
 // Extract content from web
 router.post(
-  "/",
+  "/__extract",
   openApi({
-    tags: ["Extract"],
+    tags: ["Projects"],
     summary: "Queue extract content from web",
     request: {
       json: ExtractRequestSchema,
@@ -177,7 +358,7 @@ router.post(
 
           setTask(task.id, {
             progress: (i / chapters.length) * 100,
-            data: { title: `Extracting "${c.title}"...` },
+            data: { title: `Projectsing "${c.title}"...` },
           });
 
           const { chapter, content } = await extractContent(
@@ -197,7 +378,7 @@ router.post(
 
           setTask(task.id, {
             progress: (i / chapters.length) * 100,
-            data: { title: `Extracted "${c.title}".` },
+            data: { title: `Projectsed "${c.title}".` },
           });
           await waitFor((delayChapter || 3) * 1000);
         }
@@ -244,7 +425,7 @@ router.post(
 router.get(
   "/tasks",
   openApi({
-    tags: ["Extract"],
+    tags: ["Projects"],
     summary: "Get extract tasks",
     responses: {
       200: { schema: z.null(), mediaType: "text/event-stream" },
@@ -279,7 +460,7 @@ router.get(
 router.post(
   "/translate",
   openApi({
-    tags: ["Extract"],
+    tags: ["Projects"],
     summary: "Translate content",
     request: {
       json: TranslateRequestSchema,

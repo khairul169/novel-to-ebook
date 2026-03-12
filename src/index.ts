@@ -1,10 +1,11 @@
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
+import { showRoutes } from "hono/dev";
 import { createOpenApiDocument } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { Scalar } from "@scalar/hono-api-reference";
 
-import extract from "./app/extract/routes";
+import projects from "./app/projects/routes";
 import library from "./app/library/routes";
 import { initScheduler } from "./scheduler";
 import { runMigration } from "./db/migrate";
@@ -29,7 +30,7 @@ app.onError((error, c) => {
 });
 
 // App routes
-app.route("/extract", extract);
+app.route("/projects", projects);
 app.route("/library", library);
 
 // CORS Proxy
@@ -58,6 +59,7 @@ if (process.env.NODE_ENV !== "production") {
       defaultHttpClient: { targetKey: "node", clientKey: "fetch" },
     }),
   );
+  showRoutes(app);
 }
 
 const PORT = process.env.PORT || 3000;

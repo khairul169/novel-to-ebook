@@ -9,7 +9,7 @@ import StealthPlugin from "puppeteer-extra-plugin-stealth";
 import BlockResourcesPlugin from "puppeteer-extra-plugin-block-resources";
 import { PuppeteerBlocker } from "@ghostery/adblocker-puppeteer";
 import { waitFor } from "./utils";
-import { type Action, type ActionWithLoopUntil } from "../app/extract/schema";
+import { type Action, type ActionWithLoopUntil } from "../app/projects/schema";
 
 let browser: Browser | null = null;
 let blocker: PuppeteerBlocker | null = null;

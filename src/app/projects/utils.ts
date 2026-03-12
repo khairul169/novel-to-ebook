@@ -330,9 +330,24 @@ export function findContentSelector(html: string) {
 
   if (!best) return null;
 
+  // Find chapter title
+  let title = "";
+  let titleSelector: string | null = "";
+
+  const titleEl = [
+    ...best.querySelectorAll("h1, h2, h3, h4, b, strong, p:first-of-type"),
+  ].filter((el) => el.textContent?.trim().length)[0];
+
+  if (titleEl) {
+    title = titleEl.textContent?.trim() || "";
+    titleSelector = getSelector(titleEl as HTMLElement, doc);
+  }
+
   return {
     selector: getSelector(best, doc),
     element: best,
     html: best.innerHTML.trim(),
+    title,
+    titleSelector,
   };
 }

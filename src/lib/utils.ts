@@ -1,6 +1,6 @@
 import sanitizeHtml from "sanitize-html";
 import { GoogleGenAI } from "@google/genai";
-import { selectorExample, SelectorSchema } from "../app/extract/schema";
+import { selectorExample, SelectorSchema } from "../app/projects/schema";
 import removeMd from "remove-markdown";
 
 // The client gets the API key from the environment variable `GEMINI_API_KEY`.

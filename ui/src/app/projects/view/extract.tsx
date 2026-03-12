@@ -1,14 +1,14 @@
 import { useCallback, useRef, useState } from "react";
 import ScreenshotViewer from "./components/screenshot-viewer";
-import { cleanHTML, proxyUrl } from "../../lib/utils";
-import { Field, FieldLabel } from "../../components/ui/field";
+import { cleanHTML, proxyUrl } from "../../../lib/utils";
+import { Field, FieldLabel } from "../../../components/ui/field";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupButton,
   InputGroupInput,
   InputGroupTextarea,
-} from "../../components/ui/input-group";
+} from "../../../components/ui/input-group";
 import {
   DownloadIcon,
   EyeIcon,
@@ -19,15 +19,15 @@ import {
   TrashIcon,
 } from "lucide-react";
 import { toast } from "sonner";
-import { Button } from "../../components/ui/button";
+import { Button } from "../../../components/ui/button";
 import * as cheerio from "cheerio";
-import { Label } from "../../components/ui/label";
+import { Label } from "../../../components/ui/label";
 import {
   ResizableHandle,
   ResizablePanel,
   ResizablePanelGroup,
-} from "../../components/ui/resizable";
-import { Separator } from "../../components/ui/separator";
+} from "../../../components/ui/resizable";
+import { Separator } from "../../../components/ui/separator";
 import ImportTOCDialog from "./components/import-toc-dialog";
 import {
   Dialog,
@@ -35,16 +35,16 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-} from "../../components/ui/dialog";
-import { usePersistedState } from "../../hooks/use-persisted-state";
+} from "../../../components/ui/dialog";
+import { usePersistedState } from "../../../hooks/use-persisted-state";
 import DownloadDialog from "./components/download-dialog";
-import { streamSSE } from "../../lib/sse";
-import api from "../../lib/api";
+import { streamSSE } from "../../../lib/sse";
+import api from "../../../lib/api";
 import Tasks from "./components/tasks";
 import { Link } from "react-router";
 import { Input } from "@/components/ui/input";
 
-export default function ExtractPage() {
+export default function ProjectsPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const [url, setUrl] = usePersistedState("app/url", "");
   const [selectedSelector, setSelectedSelector] = useState("");
@@ -106,7 +106,7 @@ export default function ExtractPage() {
         ignoreDuplicates: true,
       };
 
-      await streamSSE("/extract/snapshot", "post", {
+      await streamSSE("/projects/snapshot", "post", {
         body,
         onMessage: (event, data) => {
           if (event === "screenshot") {
@@ -217,7 +217,7 @@ export default function ExtractPage() {
       selectors,
       delayChapter,
     };
-    await api.POST("/extract", {
+    await api.POST("/projects", {
       body,
     });
   }, [selectors, title, coverImg, chapters, delayChapter]);

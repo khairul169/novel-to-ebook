@@ -1,7 +1,8 @@
 import { createHashRouter, RouterProvider } from "react-router";
 import LibraryPage from "./app/library/page";
 import ReaderPage from "./app/reader/page";
-import ExtractPage from "./app/extract/page";
+import ProjectListPage from "./app/projects/list/page";
+import ProjectViewPage from "./app/projects/view/page";
 
 const router = createHashRouter([
   {
@@ -13,8 +14,17 @@ const router = createHashRouter([
     Component: ReaderPage,
   },
   {
-    path: "extract",
-    Component: ExtractPage,
+    path: "projects",
+    children: [
+      {
+        index: true,
+        Component: ProjectListPage,
+      },
+      {
+        path: ":id",
+        Component: ProjectViewPage,
+      },
+    ],
   },
 ]);
 

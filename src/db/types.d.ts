@@ -16,6 +16,27 @@ export interface Histories {
   location: string;
 }
 
+export interface ProjectChapters {
+  content: string;
+  id: string;
+  index: number;
+  projectId: string;
+  title: string;
+}
+
+export interface Projects {
+  author: string;
+  config: string | null;
+  cover: Generated<string>;
+  createdAt: Generated<string>;
+  id: string;
+  language: Generated<string>;
+  title: string;
+  updatedAt: Generated<string>;
+}
+
 export interface DB {
   histories: Histories;
+  project_chapters: ProjectChapters;
+  projects: Projects;
 }
