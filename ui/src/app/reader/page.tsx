@@ -131,12 +131,12 @@ export default function ReaderPage() {
       const progress = await getHistory(bookKey);
       const lastLocation = progress?.location;
 
-      if (lastLocation) {
-        view.init({ lastLocation: lastLocation.cfi });
-        setCurState(lastLocation);
-      } else {
-        setCurState({ fraction: 0 } as never);
+      if (!lastLocation) {
+        throw new Error("No read progress found");
       }
+
+      view.init({ lastLocation: lastLocation.cfi });
+      setCurState(lastLocation);
     } catch (err) {
       view.renderer.next();
       setCurState({ fraction: 0 } as never);

@@ -1,8 +1,8 @@
 import { getOfflineImage } from "@/hooks/use-offline";
 import { useEffect, useState } from "react";
 
-type Props = React.ImgHTMLAttributes<HTMLImageElement> & {
-  src?: string;
+type Props = Omit<React.ImgHTMLAttributes<HTMLImageElement>, "src"> & {
+  src?: string | null;
   fallback?: string;
 };
 

@@ -80,6 +80,7 @@ export async function scanLibrary(paths: string[]) {
 
 export type LibraryItems = Awaited<ReturnType<typeof scanLibrary>>;
 
-export function getCoverUrl(key: string) {
+export function getCoverUrl(key?: string | null) {
+  if (!key) return null;
   return "/library/cover.jpeg?key=" + encodeURIComponent(key);
 }

@@ -132,7 +132,7 @@ const LibraryList = ({
             </div>
 
             <OfflineImage
-              src={API_URL + item.cover}
+              src={item.cover ? API_URL + item.cover : null}
               alt={item.name}
               className="absolute z-1 inset-0 w-full h-full object-cover rounded overflow-hidden shadow"
               onError={(e) => {
