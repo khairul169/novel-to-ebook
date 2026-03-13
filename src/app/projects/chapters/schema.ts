@@ -1,7 +1,7 @@
 import { z } from "zod";
 
 export const ChapterSchema = z.object({
-  id: z.uuid(),
+  id: z.number(),
   projectId: z.uuid(),
   title: z.string(),
   content: z.string(),

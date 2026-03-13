@@ -5,7 +5,9 @@ export const Migration0001: Migration = {
     // read history
     await db.schema
       .createTable("histories")
-      .addColumn("id", "integer", (cb) => cb.primaryKey().autoIncrement())
+      .addColumn("id", "integer", (cb) =>
+        cb.primaryKey().notNull().autoIncrement(),
+      )
       .addColumn("key", "text", (cb) => cb.notNull().unique())
       .addColumn("location", "jsonb", (cb) => cb.notNull())
       .addColumn("date", "timestamp", (cb) =>
@@ -33,13 +35,20 @@ export const Migration0001: Migration = {
     // project table of contents
     await db.schema
       .createTable("project_chapters")
-      .addColumn("id", "text", (cb) => cb.primaryKey().notNull())
+      .addColumn("id", "integer", (cb) =>
+        cb.primaryKey().notNull().autoIncrement(),
+      )
       .addColumn("projectId", "text", (cb) =>
         cb.notNull().references("projects.id").onDelete("cascade"),
       )
       .addColumn("title", "text", (cb) => cb.notNull())
       .addColumn("content", "text", (cb) => cb.notNull())
       .addColumn("index", "integer", (cb) => cb.notNull())
+      .execute();
+    await db.schema
+      .createIndex("project_chapters_index")
+      .on("project_chapters")
+      .column("index")
       .execute();
   },
 

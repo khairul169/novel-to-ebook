@@ -11,14 +11,14 @@ export type Generated<T> = T extends ColumnType<infer S, infer I, infer U>
 
 export interface Histories {
   date: Generated<string>;
-  id: Generated<number | null>;
+  id: Generated<number>;
   key: string;
   location: string;
 }
 
 export interface ProjectChapters {
   content: string;
-  id: string;
+  id: Generated<number>;
   index: number;
   projectId: string;
   title: string;

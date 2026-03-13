@@ -5,14 +5,11 @@ import { usePersistedState } from "@/hooks/use-persisted-state";
 import { cn } from "@/lib/utils";
 import {
   BookTextIcon,
-  FileIcon,
   FilePlusCornerIcon,
   ListOrderedIcon,
   Loader2,
-  PencilIcon,
   SaveIcon,
   Trash2Icon,
-  TrashIcon,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
 import { useProjectContext } from "../lib/context";
@@ -25,9 +22,8 @@ import { addChapterModal } from "./add-chapter-modal";
 import { $api } from "@/lib/api";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router";
-import { renameChapterModal } from "./rename-chapter-modal";
-import { openEditorTab } from "../lib/utils";
 import ChapterImportProgress from "./import-progress";
+import ChapterList from "./chapter-list";
 
 const tabs = [
   {
@@ -108,7 +104,7 @@ function TableOfContents() {
   );
   const deleteChapter = useDeleteChapter(project.id);
 
-  const onDelete = (id: string) => {
+  const onDelete = (id: number) => {
     if (!confirm("Are you sure you want to delete this chapter?")) return;
     deleteChapter(id);
   };
@@ -142,45 +138,7 @@ function TableOfContents() {
       </div>
 
       <div className="border-t mt-1 flex flex-col items-stretch py-1">
-        {!chapters && (
-          <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
-            <FileIcon className="size-8" />
-            <p className="text-center text-sm">No Chapter Added</p>
-          </div>
-        )}
-
-        {chapters?.map((c) => (
-          <div
-            key={c.id}
-            className="flex items-center hover:bg-primary/10 transition-colors group"
-          >
-            <button
-              className="px-4 h-8 cursor-pointer flex-1 text-left truncate text-xs"
-              onClick={() => openEditorTab(c)}
-            >
-              {c.title}
-            </button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-none hidden group-hover:flex"
-              onClick={() =>
-                renameChapterModal.onOpen({ title: c.title, id: c.id })
-              }
-            >
-              <PencilIcon />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              className="rounded-none hidden group-hover:flex"
-              onClick={() => onDelete(c.id)}
-            >
-              <TrashIcon />
-            </Button>
-          </div>
-        ))}
-
+        <ChapterList chapters={chapters || []} onDelete={onDelete} />
         <ChapterImportProgress />
       </div>
     </div>

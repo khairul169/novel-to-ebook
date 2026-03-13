@@ -90,6 +90,7 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
                 variant={
                   curState?.tocItem?.href === item.href ? "secondary" : "ghost"
                 }
+                title={item.label}
                 className="w-full text-left justify-start px-2 h-8 text-xs font-normal"
                 onClick={() => onTocClick?.(item.href)}
               >

@@ -4,9 +4,14 @@ import { ChapterSchema, CreateChapterSchema } from "./schema";
 import db from "../../../db";
 import { uuid, waitFor } from "../../../lib/utils";
 import z from "zod";
-import { queueImportChapters } from "./repository";
+import {
+  getLastIndex,
+  queueImportChapters,
+  reorderChapters,
+} from "./repository";
 import { streamSSE } from "hono/streaming";
 import { importQueue } from "./context";
+import { sql } from "kysely";
 
 const router = new Hono();
 
@@ -28,7 +33,11 @@ router.post(
 
     const res = await db
       .insertInto("project_chapters")
-      .values({ ...body, id: uuid(), projectId })
+      .values({
+        ...body,
+        projectId,
+        index: (await getLastIndex(projectId)) + 1,
+      })
       .returning(["id", "title"])
       .executeTakeFirstOrThrow();
 
@@ -106,7 +115,9 @@ router.get(
   openApi({
     tags: ["Projects"],
     summary: "Get chapter by id",
-    request: { param: z.object({ projectId: z.string(), id: z.string() }) },
+    request: {
+      param: z.object({ projectId: z.string(), id: z.coerce.number() }),
+    },
     responses: { 200: ChapterSchema },
   }),
   async (c) => {
@@ -122,6 +133,28 @@ router.get(
   },
 );
 
+// Reorder chapter index
+router.put(
+  "/reorder",
+  openApi({
+    tags: ["Projects"],
+    summary: "Reorder chapter",
+    request: {
+      param: z.object({ projectId: z.string() }),
+      json: z.object({ ids: z.number().array() }),
+    },
+    responses: { 204: { description: "Chapters reordered" } },
+  }),
+  async (c) => {
+    const { projectId } = c.req.valid("param");
+    const { ids } = c.req.valid("json");
+
+    await reorderChapters(projectId, ids);
+
+    return c.var.res(204, null);
+  },
+);
+
 // Update chapter
 router.put(
   "/:id",
@@ -129,7 +162,7 @@ router.put(
     tags: ["Projects"],
     summary: "Update chapter",
     request: {
-      param: z.object({ projectId: z.string(), id: z.string() }),
+      param: z.object({ projectId: z.string(), id: z.coerce.number() }),
       json: ChapterSchema.partial(),
     },
     responses: { 200: ChapterSchema },
@@ -155,7 +188,9 @@ router.delete(
   openApi({
     tags: ["Projects"],
     summary: "Delete chapter",
-    request: { param: z.object({ projectId: z.string(), id: z.string() }) },
+    request: {
+      param: z.object({ projectId: z.string(), id: z.coerce.number() }),
+    },
     responses: { 204: { description: "No content" } },
   }),
   async (c) => {

@@ -5,7 +5,7 @@ export function stripHtmlTags(str: string) {
   return str.replace(/<[^>]+>/g, "");
 }
 
-export function openEditorTab(data: { id: string; title: string }) {
+export function openEditorTab(data: { id: number; title: string }) {
   openTab({
     href: `chapter/${data.id}`,
     title: data.title,

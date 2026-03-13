@@ -6,7 +6,7 @@ import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap";
 import useMinimalTiptapEditor from "@/components/ui/minimal-tiptap/hooks/use-minimal-tiptap";
 
 type Props = {
-  id: string;
+  id: number;
 };
 
 export default function ChapterEditor({ id }: Props) {

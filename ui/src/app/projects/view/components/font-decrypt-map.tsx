@@ -18,7 +18,7 @@ import { closeTab } from "../lib/stores";
 
 export type FontDecryptData = {
   fonts: string[];
-  chapterId?: string;
+  chapterId?: number;
   title: string;
   content: string;
 };

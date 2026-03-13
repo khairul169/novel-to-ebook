@@ -19,7 +19,7 @@ import { useProjectContext } from "../lib/context";
 import { toast } from "sonner";
 
 export const renameChapterModal = createDisclosure<{
-  id: string;
+  id: number;
   title: string;
 }>();
 

@@ -3,6 +3,12 @@ import { closeTab, tabStore, useTabStore } from "../lib/stores";
 import { cn } from "@/lib/utils";
 import BackButton from "@/components/ui/back-button";
 import { XIcon } from "lucide-react";
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuTrigger,
+} from "@/components/ui/context-menu";
 
 export default function MainTabs() {
   const { tabs, curTab } = useTabStore();
@@ -49,28 +55,43 @@ export default function MainTabs() {
           className="flex items-center flex-1 overflow-x-auto"
         >
           {tabs.map((tab) => (
-            <div
-              key={tab.href}
-              id={tab.href}
-              className={cn(
-                "group flex items-stretch mt-[calc(0.5rem-1px)]",
-                tab.href === curTab && "bg-primary/10",
-              )}
-            >
-              <button
-                key={tab.href}
-                className="px-4 h-10 pr-0 text-xs shrink-0 cursor-pointer max-w-sm truncate"
-                onClick={() => tabStore.setState({ curTab: tab.href })}
+            <ContextMenu key={tab.href}>
+              <ContextMenuTrigger
+                id={tab.href}
+                className={cn(
+                  "group flex items-stretch mt-[calc(0.5rem-1px)]",
+                  tab.href === curTab && "bg-primary/10",
+                )}
               >
-                {tab.title}
-              </button>
-              <button
-                className="opacity-0 group-hover:opacity-100 cursor-pointer px-2 hover:bg-primary/10"
-                onClick={() => closeTab(tab.href)}
-              >
-                <XIcon className="size-4" />
-              </button>
-            </div>
+                <button
+                  key={tab.href}
+                  className="px-4 h-10 pr-0 text-xs shrink-0 cursor-pointer max-w-sm truncate"
+                  onClick={() => tabStore.setState({ curTab: tab.href })}
+                >
+                  {tab.title}
+                </button>
+                <button
+                  className="opacity-0 group-hover:opacity-100 cursor-pointer px-2 hover:bg-primary/10"
+                  onClick={() => closeTab(tab.href)}
+                >
+                  <XIcon className="size-4" />
+                </button>
+              </ContextMenuTrigger>
+              <ContextMenuContent>
+                <ContextMenuItem onClick={() => closeTab(tab.href)}>
+                  Close
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => closeTab(tab.href, "other")}>
+                  Close Others
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => closeTab(tab.href, "right")}>
+                  Close to the Right
+                </ContextMenuItem>
+                <ContextMenuItem onClick={() => closeTab("", "all")}>
+                  Close All
+                </ContextMenuItem>
+              </ContextMenuContent>
+            </ContextMenu>
           ))}
         </div>
 

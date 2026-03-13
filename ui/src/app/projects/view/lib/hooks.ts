@@ -21,7 +21,7 @@ export function useDeleteChapter(projectId: string) {
     "delete",
     "/projects/{projectId}/chapters/{id}",
   );
-  return useCallback((id: string) => {
+  return useCallback((id: number) => {
     deleteChapter.mutate(
       { params: { path: { projectId, id } } },
       {

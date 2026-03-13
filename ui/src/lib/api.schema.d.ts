@@ -30,8 +30,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
+                            id: number;
                             /** Format: uuid */
                             projectId: string;
                             title: string;
@@ -70,8 +69,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
+                            id: number;
                             title: string;
                         };
                     };
@@ -98,7 +96,7 @@ export interface paths {
                 header?: never;
                 path: {
                     projectId: string;
-                    id: string;
+                    id: number;
                 };
                 cookie?: never;
             };
@@ -111,8 +109,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
+                            id: number;
                             /** Format: uuid */
                             projectId: string;
                             title: string;
@@ -130,15 +127,14 @@ export interface paths {
                 header?: never;
                 path: {
                     projectId: string;
-                    id: string;
+                    id: number;
                 };
                 cookie?: never;
             };
             requestBody?: {
                 content: {
                     "application/json": {
-                        /** Format: uuid */
-                        id?: string;
+                        id?: number;
                         /** Format: uuid */
                         projectId?: string;
                         title?: string;
@@ -155,8 +151,7 @@ export interface paths {
                     };
                     content: {
                         "application/json": {
-                            /** Format: uuid */
-                            id: string;
+                            id: number;
                             /** Format: uuid */
                             projectId: string;
                             title: string;
@@ -175,7 +170,7 @@ export interface paths {
                 header?: never;
                 path: {
                     projectId: string;
-                    id: string;
+                    id: number;
                 };
                 cookie?: never;
             };
@@ -190,6 +185,48 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/projects/{projectId}/chapters/reorder": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        /** Reorder chapter */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    projectId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: {
+                content: {
+                    "application/json": {
+                        ids: number[];
+                    };
+                };
+            };
+            responses: {
+                /** @description Chapters reordered */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;

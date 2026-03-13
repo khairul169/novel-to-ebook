@@ -380,7 +380,7 @@ export function findContentSelector(html: string) {
   let titleSelector: string | null = "";
 
   const titleEl = [
-    ...best.parentElement!.querySelectorAll(
+    ...(best.parentElement || best).querySelectorAll(
       "h1, h2, h3, h4, b, strong, p:first-of-type",
     ),
   ]

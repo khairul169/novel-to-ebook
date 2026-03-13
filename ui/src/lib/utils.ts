@@ -169,3 +169,27 @@ export function getPlatform(): Platform {
 export const curPlatform = getPlatform();
 export const isMobile = curPlatform === "android" || curPlatform === "ios";
 export const isDesktop = !isMobile;
+
+export function sortableMoveArray<T>(items: T[], event: any): T[] {
+  const source = event.operation?.source;
+  const target = event.operation?.target;
+
+  if (!source || !target) return items;
+
+  const from = source.initialIndex;
+  const to = target.index;
+
+  if (from === to || from == null || to == null) return items;
+
+  const copy = [...items];
+  const [item] = copy.splice(from, 1);
+  copy.splice(to, 0, item);
+
+  if (typeof copy[0] === "object" && "index" in copy[0]!) {
+    copy.forEach((item, i) => {
+      (item as any).index = i;
+    });
+  }
+
+  return copy;
+}

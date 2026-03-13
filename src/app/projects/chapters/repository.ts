@@ -8,6 +8,7 @@ import { newBrowserPage } from "../../../lib/browser";
 import db from "../../../db";
 import { uuid, waitFor } from "../../../lib/utils";
 import { importQueue } from "./context";
+import { sql } from "kysely";
 
 export function queueImportChapters(payload: {
   projectId: string;
@@ -23,6 +24,7 @@ export function queueImportChapters(payload: {
         ? await getProjectConfig(projectId).then((i) => i.fontDecryptMap)
         : null;
       let progress = 0;
+      let lastIndex = await getLastIndex(projectId);
 
       try {
         page = await newBrowserPage();
@@ -35,17 +37,17 @@ export function queueImportChapters(payload: {
           );
 
           const res = await tryExtractContent(page, url, { fontDecryptMap });
-
+          console.log("inserting...", res.title || title);
           await db
             .insertInto("project_chapters")
             .values({
-              id: uuid(),
               projectId,
-              index: 0,
+              index: ++lastIndex,
               title,
               content: res.content,
             })
             .execute();
+          console.log("test");
 
           if (res.hasNewDecryptMap) {
             fontDecryptMap = res.fontDecryptMap;
@@ -71,4 +73,29 @@ export function queueImportChapters(payload: {
     },
     { namespace: projectId },
   );
+}
+
+export async function getLastIndex(projectId: string) {
+  const last = await db
+    .selectFrom("project_chapters")
+    .select(sql<number>`max("index")`.as("idx"))
+    .where("projectId", "=", projectId)
+    .executeTakeFirst();
+  return last?.idx ?? -1;
+}
+
+export async function reorderChapters(projectId: string, ids: number[]) {
+  const caseSql = sql`CASE id
+    ${sql.join(
+      ids.map((id, i) => sql`WHEN ${id} THEN ${i}`),
+      sql` `,
+    )}
+  END`;
+
+  await db
+    .updateTable("project_chapters")
+    .set({ index: caseSql as never })
+    .where("id", "in", ids)
+    .where("projectId", "=", projectId)
+    .execute();
 }
