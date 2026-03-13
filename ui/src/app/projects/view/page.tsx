@@ -7,6 +7,8 @@ import MainTabs from "./components/main-tabs";
 import { useEffect } from "react";
 import { setTabs } from "./lib/stores";
 import RenameChapterModal from "./components/rename-chapter-modal";
+import FontDecryptMapModal from "./components/font-decrypt-map";
+import ImportTOCDialog from "./components/import-toc-dialog";
 
 export default function ProjectViewPage() {
   const { id } = useParams() as { id: string };
@@ -19,7 +21,7 @@ export default function ProjectViewPage() {
   }, [id]);
 
   return (
-    <ProjectContext.Provider value={{ project: project! }}>
+    <ProjectContext.Provider value={{ project } as never}>
       <div className="h-screen-dvh flex items-stretch overflow-hidden">
         {project != null && <Sidebar />}
 
@@ -28,6 +30,8 @@ export default function ProjectViewPage() {
 
       <AddChapterModal />
       <RenameChapterModal />
+      <FontDecryptMapModal />
+      <ImportTOCDialog />
     </ProjectContext.Provider>
   );
 }

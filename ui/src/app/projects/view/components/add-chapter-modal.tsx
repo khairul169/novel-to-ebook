@@ -18,8 +18,9 @@ import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import { useProjectContext } from "../lib/context";
 import { toast } from "sonner";
-import { openTab } from "../lib/stores";
-import ChapterEditor from "./chapter-editor";
+import { fontDecryptMapModal, type FontDecryptData } from "./font-decrypt-map";
+import { openEditorTab } from "../lib/utils";
+import { importTOCModal } from "./import-toc-dialog";
 
 export const addChapterModal = createDisclosure();
 
@@ -51,12 +52,7 @@ export default function AddChapterModal() {
     onSuccess(data) {
       addChapterModal.setOpen(false);
       invalidateQuery("/projects/{projectId}/chapters");
-
-      openTab({
-        href: `chapter/${data.id}`,
-        title: data.title,
-        element: <ChapterEditor id={data.id} />,
-      });
+      openEditorTab(data);
     },
     onError(err) {
       toast.error((err as Error).message);
@@ -71,6 +67,7 @@ export default function AddChapterModal() {
 
   const onSubmit = form.handleSubmit(async (values) => {
     const body: CreateChapterBody = { title: "", content: "", index: 0 };
+    let obfuscated: FontDecryptData | null = null;
 
     try {
       setPending(true);
@@ -81,7 +78,10 @@ export default function AddChapterModal() {
 
       if (values.type === "link") {
         const { data } = await api.POST("/projects/extract", {
-          body: { url: values.url! },
+          body: {
+            projectId: project.id,
+            url: values.url!,
+          },
         });
 
         if (!data?.content) {
@@ -90,9 +90,34 @@ export default function AddChapterModal() {
 
         body.title = data.chapter || data.title;
         body.content = data.content;
+
+        if (data.isObfuscated && data.fonts?.length > 0) {
+          obfuscated = {
+            fonts: data.fonts,
+            title: data.chapter || data.title,
+            content: data.content,
+          };
+        }
       }
 
-      create.mutate({ params: { path: { projectId: project.id } }, body });
+      // Add new chapter
+      create.mutate(
+        { params: { path: { projectId: project.id } }, body },
+        {
+          onSuccess(data) {
+            if (obfuscated) {
+              setTimeout(
+                () =>
+                  fontDecryptMapModal.onOpen({
+                    ...obfuscated!,
+                    chapterId: data.id,
+                  }),
+                500,
+              );
+            }
+          },
+        },
+      );
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -128,7 +153,14 @@ export default function AddChapterModal() {
               <LinkIcon />
               Link
             </Button>
-            <Button variant="outline" className="flex-col h-24" disabled>
+            <Button
+              variant="outline"
+              className="flex-col h-24"
+              onClick={() => {
+                addChapterModal.setOpen(false);
+                importTOCModal.onOpen();
+              }}
+            >
               <BookSearchIcon />
               Multi Link
             </Button>

@@ -1,4 +1,4 @@
-import React, { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import {
   Dialog,
   DialogClose,
@@ -7,7 +7,6 @@ import {
   DialogFooter,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
 } from "@/components/ui/dialog";
 import {
   InputGroup,
@@ -33,16 +32,16 @@ import BrowserActionsInput, {
 import { searchChapters } from "@/lib/utils";
 import { streamSSE } from "@/lib/sse";
 import { toast } from "sonner";
+import { createDisclosure } from "@/lib/store";
+import { useProjectContext } from "../lib/context";
+import { $api, invalidateQuery } from "@/lib/api";
 
-type Props = React.ComponentProps<typeof Dialog> & {
-  onImport: (chapters: { title: string; url: string }[]) => void;
-};
+export const importTOCModal = createDisclosure();
 
-export default function ImportTOCDialog({
-  children,
-  onImport,
-  ...props
-}: Props) {
+export default function ImportTOCDialog() {
+  const { project } = useProjectContext();
+  const { open } = importTOCModal.useStore();
+
   const previewRef = useRef<HTMLDivElement>(null!);
   const [url, setUrl] = usePersistedState("import-toc-dialog/url", "");
   const [linkSelector, setLinkSelector] = usePersistedState(
@@ -61,6 +60,10 @@ export default function ImportTOCDialog({
   const [chapters, setChapters] = usePersistedState<
     { title: string; url: string; checked: boolean }[]
   >("import-toc-dialog/chapters", []);
+  const [reversed, setReversed] = usePersistedState(
+    "import-toc-dialog/reversed",
+    false,
+  );
   const [search, setSearch] = useState("");
 
   const filteredChapters = useMemo(() => {
@@ -115,19 +118,27 @@ export default function ImportTOCDialog({
     onError: (err) => toast.error(err.message),
   });
 
+  const importChapters = $api.useMutation(
+    "post",
+    "/projects/{projectId}/chapters/import",
+  );
+
   const onSelect = (type: "link" | "title", el: any) => {
     if (type === "link") {
       setLinkSelector(el.selector);
     }
     if (type === "title") {
-      let sel =
-        linkSelector.length > 0
-          ? el.selector
-              .split(linkSelector.split(" ").pop()?.trim() || "")[1]
-              ?.trim() || ""
-          : el.selector;
-      if (sel.startsWith(">")) sel = sel.slice(1).trim();
-      setTitleSelector(sel);
+      let parentSelector = linkSelector.split(" ").pop();
+      let selector: string = el.selector || "";
+
+      // cut selector from parent selector
+      const parts = selector.split(" ");
+      if (parentSelector)
+        selector = parts
+          .slice(parts.findIndex((i) => i === parentSelector) + 1)
+          .join(" ");
+
+      setTitleSelector(selector);
     }
 
     setSelectFn(null);
@@ -154,6 +165,10 @@ export default function ImportTOCDialog({
       res.push({ title, url, checked: true });
     });
 
+    if (reversed) {
+      res.reverse();
+    }
+
     setChapters(res);
   };
 
@@ -176,9 +191,33 @@ export default function ImportTOCDialog({
     });
   };
 
+  const onImport = () => {
+    if (!project) return;
+
+    const res = chapters
+      .filter((i) => i.checked)
+      .map((i) => ({ url: i.url, title: i.title }));
+
+    importChapters.mutate(
+      {
+        params: { path: { projectId: project.id } },
+        body: { links: res, delayMs: 3000 },
+      },
+      {
+        onSuccess() {
+          invalidateQuery("/projects/{projectId}/chapters");
+          importTOCModal.setOpen(false);
+          toast.success("Import queue added.");
+        },
+        onError(err) {
+          toast.error((err as Error).message);
+        },
+      },
+    );
+  };
+
   return (
-    <Dialog {...props}>
-      <DialogTrigger asChild>{children}</DialogTrigger>
+    <Dialog open={open} onOpenChange={importTOCModal.setOpen}>
       <DialogContent className="md:max-w-[calc(100vw-4rem)]">
         <DialogHeader>
           <DialogTitle>Import Table of Contents</DialogTitle>
@@ -279,6 +318,15 @@ export default function ImportTOCDialog({
                 </InputGroup>
               </Field>
 
+              <label className="flex items-start gap-2 text-sm cursor-pointer mt-4">
+                <Checkbox
+                  className="shrink-0 mt-0.5"
+                  checked={reversed}
+                  onCheckedChange={(checked) => setReversed(Boolean(checked))}
+                />
+                <span>Reverse Chapter Order</span>
+              </label>
+
               <Button onClick={onParse} disabled={!pageData} className="mt-4">
                 Parse
               </Button>
@@ -318,9 +366,9 @@ export default function ImportTOCDialog({
                     <span>Select All</span>
                   </label>
 
-                  {filteredChapters.map((c) => (
+                  {filteredChapters.map((c, idx) => (
                     <label
-                      key={c.url}
+                      key={idx}
                       className="flex items-start gap-2 text-sm cursor-pointer"
                     >
                       <Checkbox
@@ -338,18 +386,16 @@ export default function ImportTOCDialog({
             </div>
           </div>
 
-          <DialogFooter>
+          <DialogFooter className="mt-4">
             <DialogClose asChild>
               <Button variant="secondary">Cancel</Button>
             </DialogClose>
-            <DialogClose asChild>
-              <Button
-                disabled={!chapters.length}
-                onClick={() => onImport?.(chapters.filter((c) => c.checked))}
-              >
-                Import
-              </Button>
-            </DialogClose>
+            <Button
+              disabled={!chapters.length || importChapters.isPending}
+              onClick={onImport}
+            >
+              Import
+            </Button>
           </DialogFooter>
         </div>
       </DialogContent>

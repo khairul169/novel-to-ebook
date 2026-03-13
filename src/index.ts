@@ -4,11 +4,12 @@ import { showRoutes } from "hono/dev";
 import { createOpenApiDocument } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { Scalar } from "@scalar/hono-api-reference";
+import { initScheduler } from "./scheduler";
+import { runMigration } from "./db/migrate";
 
 import projects from "./app/projects/routes";
 import library from "./app/library/routes";
-import { initScheduler } from "./scheduler";
-import { runMigration } from "./db/migrate";
+import utility from "./app/utility/routes";
 
 const app = new Hono();
 
@@ -32,6 +33,7 @@ app.onError((error, c) => {
 // App routes
 app.route("/projects", projects);
 app.route("/library", library);
+app.route("/utility", utility);
 
 // CORS Proxy
 app.get("/proxy/*", async (c) => {

@@ -11,6 +11,7 @@ import {
   Loader2,
   PencilIcon,
   SaveIcon,
+  Trash2Icon,
   TrashIcon,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -22,11 +23,11 @@ import { useDeleteChapter, useUpdateProject } from "../lib/hooks";
 import { toast } from "sonner";
 import { addChapterModal } from "./add-chapter-modal";
 import { $api } from "@/lib/api";
-import { openTab } from "../lib/stores";
-import ChapterEditor from "./chapter-editor";
 import { Separator } from "@/components/ui/separator";
 import { useNavigate } from "react-router";
 import { renameChapterModal } from "./rename-chapter-modal";
+import { openEditorTab } from "../lib/utils";
+import ChapterImportProgress from "./import-progress";
 
 const tabs = [
   {
@@ -112,19 +113,35 @@ function TableOfContents() {
     deleteChapter(id);
   };
 
+  const onRemoveAllChapters = () => {
+    if (!confirm("Are you sure you want to delete all chapter?")) return;
+    chapters?.forEach((c) => deleteChapter(c.id));
+  };
+
   return (
     <div>
-      <Button
-        variant="ghost"
-        size="xs"
-        className="mx-2"
-        onClick={() => addChapterModal.onOpen()}
-      >
-        <FilePlusCornerIcon />
-        Add Chapter
-      </Button>
+      <div className="flex items-center gap-1">
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mx-1"
+          onClick={() => addChapterModal.onOpen()}
+        >
+          <FilePlusCornerIcon />
+          Add
+        </Button>
+        <div className="flex-1" />
+        <Button
+          variant="ghost"
+          size="sm"
+          className="mx-1"
+          onClick={onRemoveAllChapters}
+        >
+          <Trash2Icon />
+        </Button>
+      </div>
 
-      <div className="border-t mt-2 flex flex-col items-stretch py-1">
+      <div className="border-t mt-1 flex flex-col items-stretch py-1">
         {!chapters && (
           <div className="flex flex-col items-center justify-center gap-2 py-16 text-muted-foreground">
             <FileIcon className="size-8" />
@@ -139,13 +156,7 @@ function TableOfContents() {
           >
             <button
               className="px-4 h-8 cursor-pointer flex-1 text-left truncate text-xs"
-              onClick={() =>
-                openTab({
-                  href: "chapter/" + c.id,
-                  title: c.title,
-                  element: <ChapterEditor id={c.id} />,
-                })
-              }
+              onClick={() => openEditorTab(c)}
             >
               {c.title}
             </button>
@@ -169,6 +180,8 @@ function TableOfContents() {
             </Button>
           </div>
         ))}
+
+        <ChapterImportProgress />
       </div>
     </div>
   );

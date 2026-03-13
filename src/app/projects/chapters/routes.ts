@@ -2,8 +2,11 @@ import { Hono } from "hono";
 import { openApi } from "hono-zod-openapi";
 import { ChapterSchema, CreateChapterSchema } from "./schema";
 import db from "../../../db";
-import { uuid } from "../../../lib/utils";
+import { uuid, waitFor } from "../../../lib/utils";
 import z from "zod";
+import { queueImportChapters } from "./repository";
+import { streamSSE } from "hono/streaming";
+import { importQueue } from "./context";
 
 const router = new Hono();
 
@@ -55,6 +58,47 @@ router.get(
     return c.var.res(res);
   },
 );
+
+router.get("/import", (c) => {
+  const projectId = c.req.param("projectId");
+
+  return streamSSE(c, async (stream) => {
+    const sendTasks = () => {
+      const tasks = importQueue.getTasks();
+      const data = tasks.map((i) => ({
+        id: i.id,
+        title: i.title,
+        progress: i.progress,
+        status: i.status,
+        error: i.error,
+      }));
+
+      return stream.writeSSE({
+        event: "tasks",
+        data: JSON.stringify(data),
+      });
+    };
+
+    const updateFn = importQueue.on("update", async (t) => {
+      if (t.namespace === projectId) {
+        await sendTasks();
+      }
+    });
+    const errorFn = importQueue.on("error", async (t) => {
+      if (t.namespace === projectId) {
+        await stream.writeSSE({ event: "error", data: JSON.stringify(t) });
+      }
+    });
+
+    await sendTasks();
+    while (!stream.aborted) {
+      await waitFor(1000);
+    }
+
+    updateFn();
+    errorFn();
+  });
+});
 
 // Get chapter
 router.get(
@@ -122,6 +166,31 @@ router.delete(
       .where("id", "=", id)
       .execute();
     return c.body(null, 204);
+  },
+);
+
+// Extract & import from links
+router.post(
+  "/import",
+  openApi({
+    tags: ["Projects"],
+    summary: "Import chapters from links",
+    request: {
+      param: z.object({ projectId: z.string() }),
+      json: z.object({
+        links: z.object({ url: z.url(), title: z.string() }).array(),
+        delayMs: z.number().optional(),
+      }),
+    },
+    responses: { 200: z.object({ taskId: z.uuid() }) },
+  }),
+  async (c) => {
+    const { projectId } = c.req.valid("param");
+    const { links, delayMs } = c.req.valid("json");
+
+    const res = queueImportChapters({ projectId, links, delayMs });
+
+    return c.var.res({ taskId: res.id });
   },
 );
 

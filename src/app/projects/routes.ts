@@ -5,8 +5,6 @@ import {
   ActionSchema,
   CreateProjectReqSchema,
   CreateProjectResSchema,
-  ExtractRequestSchema,
-  ExtractResponseSchema,
   ProjectSchema,
   SnapshotRequestSchema,
   TranslateRequestSchema,
@@ -19,15 +17,14 @@ import { openApi } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import z from "zod";
 import {
-  extractContent,
   extractElements,
   fetchImage,
-  findChapterTitle,
   findContentSelector,
   getCleanHTML,
+  getProjectConfig,
+  tryExtractContent,
+  updateProjectConfig,
 } from "./utils";
-import { addTask, getTasks, setTask, taskEvents } from "./context";
-import Epub from "epub-gen";
 import EpubGenMemory from "@epubkit/epub-gen-memory";
 import { rescanLibrary } from "../library/context";
 import path from "path";
@@ -36,8 +33,6 @@ import chapters from "./chapters/routes";
 import { HTTPError } from "../../lib/error";
 import fs from "fs";
 import type { ProjectConfig } from "./types";
-import { Readability } from "@mozilla/readability";
-import { JSDOM } from "jsdom";
 
 const router = new Hono();
 
@@ -140,8 +135,19 @@ router.put(
     const { id } = c.req.valid("param");
     const values = c.req.valid("json");
 
+    // Partial config update
     if (values.config) {
-      values.config = JSON.stringify(values.config);
+      const curData = await db
+        .selectFrom("projects")
+        .select("config")
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+
+      const curConfig = curData.config ? JSON.parse(curData.config) : null;
+      values.config = JSON.stringify({
+        ...(curConfig || {}),
+        ...values.config,
+      });
     }
 
     const res = await db
@@ -166,8 +172,8 @@ router.post(
     summary: "Extract content from url",
     request: {
       json: z.object({
+        projectId: z.string().nullish(),
         url: z.url(),
-        selectors: z.object({ content: z.string().nullish() }).nullish(),
       }),
     },
     responses: {
@@ -177,57 +183,33 @@ router.post(
         author: z.string(),
         content: z.string(),
         language: z.string(),
-        // selectors: z.object({
-        //   content: z.string().nullish(),
-        //   chapter: z.string().nullish(),
-        // }),
+        isObfuscated: z.boolean().nullish(),
+        fonts: z.string().array(),
       }),
     },
   }),
   async (c) => {
-    const { url, selectors } = c.req.valid("json");
+    const { projectId, url } = c.req.valid("json");
 
     let page: Page | null = null;
 
     try {
       page = await newBrowserPage();
       await page.setViewport({ width: 640, height: 480 });
-      await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
-      const [title, html] = await Promise.all([
-        page.evaluate(() => document.title),
-        page.evaluate(getCleanHTML),
-      ]);
 
-      const doc = new JSDOM(html);
-      const article = new Readability(doc.window.document).parse();
+      const fontDecryptMap = projectId
+        ? await getProjectConfig(projectId).then((i) => i.fontDecryptMap)
+        : null;
 
-      // const selectors = findContentSelector(html);
-      // const contentSelector = selectors?.selector || null;
-      // const chapterSelector = selectors?.titleSelector || null;
+      const res = await tryExtractContent(page, url, { fontDecryptMap });
 
-      // return c.var.res({
-      //   title,
-      //   chapter: selectors?.title || "",
-      //   content: selectors?.html || "",
-      //   selectors: { content: contentSelector, chapter: chapterSelector },
-      // });
-
-      const contentEl = article?.content
-        ? new JSDOM(article?.content || "")
-        : doc;
-      const chapter = findChapterTitle(contentEl.window.document);
-
-      if (!article) {
-        throw new Error("Cannot extract content");
+      if (res.hasNewDecryptMap && projectId) {
+        await updateProjectConfig(projectId, {
+          fontDecryptMap: res.fontDecryptMap,
+        });
       }
 
-      return c.var.res({
-        title: article.siteName || title || "",
-        chapter: chapter?.title || article?.title || "",
-        author: article?.byline || "",
-        content: article?.content || "",
-        language: article?.lang || "",
-      });
+      return c.var.res({ ...res, fonts: [...res.fonts] });
     } catch (err) {
       console.error(err);
       throw new HTTPError("Error extracting content", { status: 400 });
@@ -425,142 +407,6 @@ router.post(
       } finally {
         if (page) await page.close();
       }
-    });
-  },
-);
-
-// Extract content from web
-router.post(
-  "/__extract",
-  openApi({
-    tags: ["Projects"],
-    summary: "Queue extract content from web",
-    request: {
-      json: ExtractRequestSchema,
-    },
-    responses: {
-      200: ExtractResponseSchema,
-    },
-  }),
-  async (c) => {
-    const { chapters, selectors, delayChapter, ...body } = c.req.valid("json");
-
-    const task = addTask(async () => {
-      let page;
-      const contents: { title: string; data: string }[] = [];
-      let cover: {
-        fullPath: string;
-        filename: string;
-        contentType: string;
-      } | null = null;
-
-      try {
-        if (body.cover) {
-          cover = await fetchImage(body.cover, "./img");
-        }
-
-        page = await newBrowserPage({ blockResources: true });
-        await page.setViewport({ width: 640, height: 480 });
-
-        for (let i = 0; i < chapters.length; i++) {
-          const c = chapters[i]!;
-
-          setTask(task.id, {
-            progress: (i / chapters.length) * 100,
-            data: { title: `Projectsing "${c.title}"...` },
-          });
-
-          const { chapter, content } = await extractContent(
-            page,
-            c.url,
-            selectors,
-          );
-
-          if (!content) {
-            throw new Error("Cannot extract " + c.title);
-          }
-
-          contents.push({
-            title: chapter || c.title,
-            data: content,
-          });
-
-          setTask(task.id, {
-            progress: (i / chapters.length) * 100,
-            data: { title: `Projectsed "${c.title}".` },
-          });
-          await waitFor((delayChapter || 3) * 1000);
-        }
-
-        setTask(task.id, {
-          progress: 100,
-          data: { title: "Generating EPUB..." },
-        });
-
-        await new Epub({
-          title: body.title,
-          author: body.author,
-          cover: cover?.fullPath,
-          content: contents,
-          output: path.join(
-            process.env.DATA_PATH || "./data",
-            body.title + ".epub",
-          ),
-        }).promise;
-
-        setTask(task.id, {
-          progress: 100,
-          data: { title: "Success!" },
-        });
-
-        setTimeout(() => rescanLibrary, 1000);
-      } catch (err) {
-        console.error(err);
-        setTask(task.id, {
-          progress: -1,
-          data: { title: `Error! ${(err as Error).message}` },
-        });
-        throw err;
-      } finally {
-        if (page) await page.close();
-        if (cover) fs.unlinkSync(cover.fullPath);
-      }
-    });
-
-    return c.var.res({ taskId: task.id });
-  },
-);
-
-router.get(
-  "/tasks",
-  openApi({
-    tags: ["Projects"],
-    summary: "Get extract tasks",
-    responses: {
-      200: { schema: z.null(), mediaType: "text/event-stream" },
-    },
-  }),
-  async (c) => {
-    return streamSSE(c, async (s) => {
-      const signal = c.req.raw.signal;
-
-      const sendTasks = async () => {
-        s.writeSSE({ event: "tasks", data: JSON.stringify(getTasks()) });
-      };
-
-      await sendTasks();
-      taskEvents.on("change", sendTasks);
-
-      while (!signal.aborted) {
-        await s.writeSSE({
-          event: "ping",
-          data: JSON.stringify({ date: Date.now() }),
-        });
-
-        await waitFor(10000);
-      }
-
-      taskEvents.off("change", sendTasks);
     });
   },
 );

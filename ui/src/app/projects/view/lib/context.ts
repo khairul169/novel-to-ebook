@@ -1,7 +1,11 @@
 import type { JsonRes } from "@/lib/api";
 import { createContext, useContext } from "react";
 
-type Project = JsonRes<"/projects/{id}", "get">;
+type Project = Omit<JsonRes<"/projects/{id}", "get">, "config"> & {
+  config: {
+    fontDecryptMap: string;
+  } | null;
+};
 
 export const ProjectContext = createContext<{
   project: Project;

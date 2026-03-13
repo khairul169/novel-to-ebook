@@ -4,6 +4,14 @@ import { cleanHTML } from "../../lib/utils";
 import fs from "fs/promises";
 import path from "path";
 import { JSDOM } from "jsdom";
+import { Readability } from "@mozilla/readability";
+import * as extractus from "@extractus/article-extractor";
+import {
+  detectObfuscatedContent,
+  FontDecryptor,
+} from "../../lib/font-decryptor";
+import { decryptTextFromFont } from "../utility/utils";
+import db from "../../db";
 
 export function extractElements(ignoreDuplicates = false) {
   const result: any[] = [];
@@ -393,6 +401,89 @@ export function findContentSelector(html: string) {
   };
 }
 
+export function extractFonts(page: Page) {
+  const fonts = new Set<string>();
+
+  page.on("response", (res) => {
+    const req = res.request();
+    const type = req.resourceType();
+    const url = new URL(req.url());
+
+    // ignore external fonts
+    if (
+      [
+        "fonts.googleapis.com",
+        "fonts.gstatic.com",
+        "cdn.jsdelivr.net",
+        "ajax.googleapis.com",
+      ].includes(url.hostname)
+    )
+      return;
+
+    const filename = url.pathname.split("/").pop() || "";
+
+    if (
+      filename.startsWith("fa-solid") ||
+      filename.startsWith("fa-regular") ||
+      filename.startsWith("fa-brands")
+    ) {
+      return;
+    }
+
+    if (type === "font") {
+      fonts.add(url.toString());
+    }
+
+    // fallback if site mislabels resource type
+    const ct = res.headers()["content-type"] || "";
+    if (ct.includes("font") || ct.includes("woff")) {
+      fonts.add(url.toString());
+    }
+  });
+
+  return fonts;
+}
+
+export async function extractArticle(html: string) {
+  try {
+    const article = await extractus.extractFromHtml(html);
+    if (!article?.content || article.content.length < 320) {
+      throw new Error("No content found");
+    }
+
+    return {
+      title: article?.title,
+      author: article?.author,
+      content: article?.content,
+      language: undefined,
+    };
+  } catch {}
+
+  try {
+    const doc = new JSDOM(html);
+    const article = new Readability(doc.window.document).parse();
+    if (!article?.content || article.content.length < 320) {
+      throw new Error("No content found");
+    }
+
+    return {
+      title: article?.title || article?.siteName,
+      author: article?.byline,
+      content: article?.content,
+      language: article?.lang,
+    };
+  } catch {}
+
+  const article = findContentSelector(html);
+
+  return {
+    title: article?.title,
+    author: "",
+    content: article?.html,
+    language: "",
+  };
+}
+
 export function findChapterTitle(doc: Document) {
   // Find chapter title
   let title = "";
@@ -410,4 +501,85 @@ export function findChapterTitle(doc: Document) {
   }
 
   return { title, titleSelector };
+}
+
+export async function tryExtractContent(
+  page: Page,
+  url: string,
+  options?: { fontDecryptMap?: Record<string, string> | null },
+) {
+  const fonts = extractFonts(page);
+
+  await page.goto(url, { waitUntil: "networkidle2", timeout: 30000 });
+  const [title, html] = await Promise.all([
+    page.evaluate(() => document.title),
+    page.evaluate(getCleanHTML),
+  ]);
+
+  const article = await extractArticle(html);
+  let content = article?.content || "";
+  if (!article || !content) {
+    throw new Error("Cannot extract content");
+  }
+
+  let fontDecryptMap: Record<string, string> | null =
+    options?.fontDecryptMap || null;
+  if (fontDecryptMap) {
+    const decryptor = FontDecryptor.fromMap(fontDecryptMap);
+    content = decryptor.decrypt(content);
+  }
+
+  let isObfuscated = false;
+  let fontIdx = 0;
+  let hasNewDecryptMap = false;
+  const fontArr = [...fonts];
+
+  while (
+    (isObfuscated = detectObfuscatedContent(content)?.encrypted) &&
+    fontIdx < fontArr.length &&
+    fontIdx < 5 // max 5 attempts
+  ) {
+    const font = fontArr[fontIdx++];
+    const res = await decryptTextFromFont([content], { fontUrl: font });
+
+    if (res.map && res.result[0]) {
+      fontDecryptMap = { ...(fontDecryptMap || {}), ...res.map };
+      content = res.result[0];
+      hasNewDecryptMap = true;
+    }
+  }
+
+  const contentEl = new JSDOM(content);
+  const chapter = findChapterTitle(contentEl.window.document);
+
+  return {
+    title: title || "",
+    chapter: chapter?.title || article?.title || "",
+    author: article?.author || "",
+    content,
+    language: article?.language || "",
+    isObfuscated,
+    fonts,
+    fontDecryptMap,
+    hasNewDecryptMap,
+  };
+}
+
+export async function getProjectConfig(id: string) {
+  const data = await db
+    .selectFrom("projects")
+    .select("config")
+    .where("id", "=", id)
+    .executeTakeFirstOrThrow();
+  return data.config ? JSON.parse(data.config) : {};
+}
+
+export async function updateProjectConfig(id: string, values: any) {
+  const config = await getProjectConfig(id);
+  const newConfig = { ...config, ...values };
+  await db
+    .updateTable("projects")
+    .set({ config: JSON.stringify(newConfig) })
+    .where("id", "=", id)
+    .execute();
 }
