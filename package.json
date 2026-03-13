@@ -25,6 +25,7 @@
     "typescript": "^5"
   },
   "dependencies": {
+    "@epubkit/epub-gen-memory": "1.0.10-aplha.14",
     "@ghostery/adblocker-puppeteer": "^2.14.1",
     "@google/genai": "^1.44.0",
     "@scalar/hono-api-reference": "^0.10.0",

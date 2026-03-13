@@ -224,6 +224,10 @@ export async function fetchImage(url: string, outDir: string) {
   const filename =
     (urlParts.pathname.split("/").pop() || "image-" + Date.now()) + "." + ext;
   const fullPath = path.join(outDir, filename);
+
+  if (!(await fs.exists(outDir))) {
+    await fs.mkdir(outDir, { recursive: true });
+  }
   await fs.writeFile(fullPath, Buffer.from(buffer));
 
   return { fullPath, filename, contentType };
@@ -268,13 +272,22 @@ export function getSelector(el: HTMLElement, doc: Document) {
   return parts.join(" ");
 }
 
+function getDepth(el: HTMLElement) {
+  let d = 0;
+  let cur: HTMLElement | null = el;
+  while (cur) {
+    d++;
+    cur = cur.parentElement;
+  }
+  return d;
+}
+
 export function findContentSelector(html: string) {
   const dom = new JSDOM(html);
   const doc = dom.window.document;
   const scores = new Map<HTMLElement, number>();
 
   const paragraphs = doc.querySelectorAll("p");
-
   for (const p of paragraphs) {
     const text = p.textContent?.trim() ?? "";
     if (text.length < 40) continue;
@@ -295,20 +308,19 @@ export function findContentSelector(html: string) {
   }
 
   // images
-  const images = doc.querySelectorAll("img");
-  for (const img of images) {
-    const parent = img.parentElement;
-    if (!parent) continue;
+  for (const el of Array.from(doc.querySelectorAll("*"))) {
+    if (!(el instanceof dom.window.HTMLElement)) continue;
 
-    const grand = parent.parentElement;
-    let score = 2;
-    scores.set(parent, (scores.get(parent) || 0) + score);
+    const imgs = el.querySelectorAll("img").length;
+    if (imgs < 3) continue;
 
-    if (grand) {
-      scores.set(grand, (scores.get(grand) || 0) + score * 0.5);
-    }
-    if (parent.children.length <= 3) {
-      scores.set(parent, (scores.get(parent) || 0) + 3);
+    const text = el.textContent?.trim() ?? "";
+    const textLength = text.length;
+
+    if (textLength < 200) {
+      scores.set(el, (scores.get(el) || 0) + imgs * 4);
+    } else {
+      scores.set(el, (scores.get(el) || 0) + imgs * 2);
     }
   }
 
@@ -320,7 +332,8 @@ export function findContentSelector(html: string) {
     const textLength = el.textContent?.trim()?.length ?? 1;
     const linkCount = el.querySelectorAll("a").length;
     const linkDensity = linkCount / textLength;
-    const finalScore = score - linkDensity * 10;
+    const depth = getDepth(el);
+    const finalScore = score + depth * 10 - linkDensity * 10;
 
     if (finalScore > bestScore) {
       bestScore = finalScore;
@@ -329,6 +342,27 @@ export function findContentSelector(html: string) {
   }
 
   if (!best) return null;
+
+  function isEmpty(el: HTMLElement) {
+    const text = el.textContent?.replace(/\u00A0/g, " ").trim() ?? "";
+    const hasMedia = el.querySelector("img, svg");
+    return text === "" && !hasMedia;
+  }
+
+  function trimEmptyEdges(container: HTMLElement) {
+    const children = Array.from(container.children) as HTMLElement[];
+
+    let start = 0;
+    let end = children.length - 1;
+
+    while (start <= end && isEmpty(children[start]!)) start++;
+    while (end >= start && isEmpty(children[end]!)) end--;
+
+    children.slice(0, start).forEach((el) => el.remove());
+    children.slice(end + 1).forEach((el) => el.remove());
+  }
+
+  trimEmptyEdges(best);
 
   // Find chapter title
   let title = "";

@@ -19,4 +19,13 @@ export function openTab(tab: TabStore["tabs"][number]) {
   }
 }
 
+export function closeTab(href: string) {
+  const { tabs } = tabStore.getState();
+  tabStore.setState({ tabs: tabs.filter((t) => t.href !== href) });
+}
+
+export function setTabs(tabs: TabStore["tabs"]) {
+  tabStore.setState({ tabs, curTab: tabs[0]?.href || "" });
+}
+
 export const useTabStore = () => useStore(tabStore);

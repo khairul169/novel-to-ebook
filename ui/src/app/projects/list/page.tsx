@@ -1,10 +1,11 @@
+import BackButton from "@/components/ui/back-button";
 import {
   InputGroup,
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
 import { $api } from "@/lib/api";
-import { PlusIcon, SearchIcon } from "lucide-react";
+import { ArrowLeftIcon, PlusIcon, SearchIcon } from "lucide-react";
 import { useState } from "react";
 import { Link, useNavigate } from "react-router";
 import { toast } from "sonner";
@@ -45,7 +46,11 @@ export default function ProjectListPage() {
         </InputGroup>
       </div>
 
-      <h2 className="font-medium text-xl mx-6 mt-10">Projects</h2>
+      <BackButton to="/" variant="ghost" className="ml-2 mt-6">
+        <ArrowLeftIcon className="size-6" />
+      </BackButton>
+
+      <h2 className="font-medium text-3xl mx-6 mt-2">Projects</h2>
       <div className="grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] p-2">
         <button
           className="text-foreground p-4 rounded hover:bg-secondary flex flex-col items-center justify-center gap-2 border m-4 cursor-pointer"

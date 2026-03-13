@@ -1,17 +1,18 @@
-import * as React from "react"
-import type { TooltipContentProps } from "@radix-ui/react-tooltip"
+import * as React from "react";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
-} from "@/components/ui/tooltip"
-import { Toggle } from "@/components/ui/toggle"
-import { cn } from "@/lib/utils"
+} from "@/components/ui/tooltip";
+import { Toggle } from "@/components/ui/toggle";
+import { cn } from "@/lib/utils";
+
+type TooltipContentProps = any;
 
 interface ToolbarButtonProps extends React.ComponentProps<typeof Toggle> {
-  isActive?: boolean
-  tooltip?: string
-  tooltipOptions?: TooltipContentProps
+  isActive?: boolean;
+  tooltip?: string;
+  tooltipOptions?: TooltipContentProps;
 }
 
 export const ToolbarButton = ({
@@ -26,22 +27,22 @@ export const ToolbarButton = ({
     <Toggle className={cn({ "bg-accent": isActive }, className)} {...props}>
       {children}
     </Toggle>
-  )
+  );
 
   if (!tooltip) {
-    return toggleButton
+    return toggleButton;
   }
 
   return (
-    <Tooltip>
+    <Tooltip delayDuration={500}>
       <TooltipTrigger asChild>{toggleButton}</TooltipTrigger>
       <TooltipContent {...tooltipOptions}>
         <div className="flex flex-col items-center text-center">{tooltip}</div>
       </TooltipContent>
     </Tooltip>
-  )
-}
+  );
+};
 
-ToolbarButton.displayName = "ToolbarButton"
+ToolbarButton.displayName = "ToolbarButton";
 
-export default ToolbarButton
+export default ToolbarButton;

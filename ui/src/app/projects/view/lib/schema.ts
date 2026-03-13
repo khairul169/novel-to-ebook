@@ -5,4 +5,9 @@ export const projectDetailsSchema = z.object({
   author: z.string().min(1),
   cover: z.string(),
   language: z.string(),
+  config: z
+    .object({
+      outDir: z.string().nullish(),
+    })
+    .nullish(),
 });

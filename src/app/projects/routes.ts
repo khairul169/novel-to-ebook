@@ -1,6 +1,5 @@
 import { Hono } from "hono";
 import { streamSSE } from "hono/streaming";
-import fs from "fs/promises";
 import { translate, uuid, waitFor } from "../../lib/utils";
 import {
   ActionSchema,
@@ -28,12 +27,14 @@ import {
 } from "./utils";
 import { addTask, getTasks, setTask, taskEvents } from "./context";
 import Epub from "epub-gen";
+import EpubGenMemory from "@epubkit/epub-gen-memory";
 import { rescanLibrary } from "../library/context";
 import path from "path";
 import db from "../../db";
 import chapters from "./chapters/routes";
 import { HTTPError } from "../../lib/error";
-import * as cheerio from "cheerio";
+import fs from "fs";
+import type { ProjectConfig } from "./types";
 
 const router = new Hono();
 
@@ -207,6 +208,82 @@ router.post(
       throw new HTTPError("Error extracting content", { status: 400 });
     } finally {
       if (page) await page.close();
+    }
+  },
+);
+
+router.post(
+  "/:id/export",
+  openApi({
+    tags: ["Projects"],
+    summary: "Export project",
+    request: {
+      param: z.object({ id: z.string() }),
+    },
+    responses: {
+      200: z.object({ key: z.string() }),
+    },
+  }),
+  async (c) => {
+    let cover: string | undefined = undefined;
+
+    try {
+      const { id } = c.req.valid("param");
+      const project = await db
+        .selectFrom("projects")
+        .selectAll()
+        .where("id", "=", id)
+        .executeTakeFirstOrThrow();
+      const config = project.config
+        ? (JSON.parse(project.config) as ProjectConfig)
+        : null;
+
+      const chapters = await db
+        .selectFrom("project_chapters")
+        .selectAll()
+        .where("projectId", "=", id)
+        .execute();
+
+      const contents = chapters.map((c) => ({
+        title: c.title,
+        content: c.content,
+      }));
+
+      const outDir = path.join(
+        process.env.DATA_PATH || "./data",
+        config?.outDir || "",
+      );
+      const filename = project.title + ".epub";
+      const key = path
+        .join(config?.outDir || "", filename)
+        .replaceAll("\\", "/");
+
+      if (!fs.existsSync(outDir)) {
+        fs.mkdirSync(outDir, { recursive: true });
+      }
+
+      const cover = project.cover
+        ? (await fetchImage(project.cover, "./img"))?.fullPath
+        : undefined;
+      const epub = await EpubGenMemory(
+        {
+          title: project.title,
+          author: project.author,
+          cover,
+          lang: project.language || "en",
+          ignoreFailedDownloads: true,
+        },
+        contents,
+      );
+
+      fs.writeFileSync(path.join(outDir, filename), epub);
+      setTimeout(rescanLibrary, 1000);
+
+      return c.var.res({ key });
+    } catch (err) {
+      throw err;
+    } finally {
+      if (cover) fs.unlinkSync(cover);
     }
   },
 );
@@ -414,7 +491,7 @@ router.post(
         throw err;
       } finally {
         if (page) await page.close();
-        if (cover) await fs.unlink(cover.fullPath);
+        if (cover) fs.unlinkSync(cover.fullPath);
       }
     });
 

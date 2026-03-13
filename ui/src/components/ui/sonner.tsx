@@ -28,6 +28,11 @@ const Toaster = ({ ...props }: ToasterProps) => {
           "--border-radius": "var(--radius)",
         } as React.CSSProperties
       }
+      toastOptions={{
+        classNames: {
+          content: "flex-1",
+        },
+      }}
       {...props}
     />
   );

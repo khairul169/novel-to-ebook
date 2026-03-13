@@ -1,5 +1,5 @@
 import { Button } from "@/components/ui/button";
-import { Field, FieldLabel } from "@/components/ui/field";
+import { Field, FieldDescription, FieldLabel } from "@/components/ui/field";
 import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import { cn } from "@/lib/utils";
@@ -8,7 +8,9 @@ import {
   FileIcon,
   FilePlusCornerIcon,
   ListOrderedIcon,
+  Loader2,
   PencilIcon,
+  SaveIcon,
   TrashIcon,
 } from "lucide-react";
 import { useEffect, useMemo } from "react";
@@ -22,6 +24,9 @@ import { addChapterModal } from "./add-chapter-modal";
 import { $api } from "@/lib/api";
 import { openTab } from "../lib/stores";
 import ChapterEditor from "./chapter-editor";
+import { Separator } from "@/components/ui/separator";
+import { useNavigate } from "react-router";
+import { renameChapterModal } from "./rename-chapter-modal";
 
 const tabs = [
   {
@@ -39,6 +44,7 @@ const tabs = [
 ];
 
 export default function Sidebar() {
+  const { project } = useProjectContext();
   const [curTab, setTab] = usePersistedState(
     "projects/sidebar-tab",
     tabs[0].id,
@@ -54,30 +60,41 @@ export default function Sidebar() {
   }, [curTab]);
 
   return (
-    <>
-      <nav className="w-12 bg-secondary border-r">
-        {tabs.map((tab) => (
-          <Button
-            key={tab.id}
-            variant="ghost"
-            className={cn(
-              "w-full aspect-square h-auto rounded-none border-b",
-              curTab === tab.id && "bg-primary/10",
-            )}
-            onClick={() => setTab(tab.id)}
-          >
-            <tab.icon />
-          </Button>
-        ))}
-      </nav>
-      <aside className="w-65 bg-background border-r flex flex-col items-stretch">
-        <div className="px-4 py-3">
-          <p className="text-xs uppercase truncate">{tab?.name || ""}</p>
-        </div>
+    <div className="flex flex-col items-stretch overflow-hidden border-r w-80">
+      <div className="bg-secondary border-b h-12 flex items-center pl-4 pr-2">
+        <p className="text-sm font-medium flex-1 truncate mr-2">
+          {project?.title}
+        </p>
+        <Button size="sm" onClick={() => setTab("details")}>
+          <SaveIcon />
+          Export
+        </Button>
+      </div>
+      <div className="flex-1 flex items-stretch overflow-hidden">
+        <nav className="w-12 bg-secondary border-r">
+          {tabs.map((tab) => (
+            <Button
+              key={tab.id}
+              variant="ghost"
+              className={cn(
+                "w-full aspect-square h-auto rounded-none border-b",
+                curTab === tab.id && "bg-primary/10",
+              )}
+              onClick={() => setTab(tab.id)}
+            >
+              <tab.icon />
+            </Button>
+          ))}
+        </nav>
+        <aside className="bg-background flex flex-col items-stretch flex-1">
+          <div className="px-4 py-3">
+            <p className="text-xs uppercase truncate">{tab?.name || ""}</p>
+          </div>
 
-        <div className="flex-1 overflow-y-auto pb-3">{tab?.element}</div>
-      </aside>
-    </>
+          <div className="flex-1 overflow-y-auto pb-3">{tab?.element}</div>
+        </aside>
+      </div>
+    </div>
   );
 }
 
@@ -136,6 +153,9 @@ function TableOfContents() {
               variant="ghost"
               size="icon-sm"
               className="rounded-none hidden group-hover:flex"
+              onClick={() =>
+                renameChapterModal.onOpen({ title: c.title, id: c.id })
+              }
             >
               <PencilIcon />
             </Button>
@@ -158,6 +178,8 @@ function ProjectDetails() {
   const { project } = useProjectContext();
   const form = useForm({ resolver: zodResolver(projectDetailsSchema) });
   const update = useUpdateProject(project.id);
+  const exportProject = $api.useMutation("post", "/projects/{id}/export");
+  const navigate = useNavigate();
 
   useEffect(() => {
     try {
@@ -171,6 +193,29 @@ function ProjectDetails() {
     const cb = form.watch((data) => update.debounce(data));
     return () => cb.unsubscribe();
   }, []);
+
+  const onExport = () => {
+    exportProject.mutate(
+      { params: { path: { id: project.id } } },
+      {
+        onSuccess(data) {
+          toast.success("Project exported successfully!", {
+            action: (
+              <Button
+                size="sm"
+                onClick={() => navigate(`/reader/?book=${data.key}`)}
+              >
+                View
+              </Button>
+            ),
+          });
+        },
+        onError(err) {
+          toast.error((err as Error).message);
+        },
+      },
+    );
+  };
 
   return (
     <div className="px-4 space-y-3">
@@ -201,6 +246,22 @@ function ProjectDetails() {
           <InputGroupInput placeholder="en" {...form.register("language")} />
         </InputGroup>
       </Field>
+
+      <Separator className="mt-16" />
+
+      <p className="text-xs uppercase">Export Settings</p>
+      <Field>
+        <FieldLabel>Output Directory</FieldLabel>
+        <FieldDescription>Leave empty for root dir</FieldDescription>
+        <InputGroup>
+          <InputGroupInput {...form.register("config.outDir")} />
+        </InputGroup>
+      </Field>
+
+      <Button onClick={onExport} disabled={exportProject.isPending}>
+        {exportProject.isPending && <Loader2 className="mr-2 animate-spin" />}
+        Save as EPUB
+      </Button>
     </div>
   );
 }
