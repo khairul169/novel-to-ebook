@@ -72,6 +72,7 @@ export interface paths {
                         "application/json": {
                             /** Format: uuid */
                             id: string;
+                            title: string;
                         };
                     };
                 };
@@ -424,11 +425,8 @@ export interface paths {
                         "application/json": {
                             title: string;
                             chapter: string;
+                            author: string;
                             content: string;
-                            selectors: {
-                                content?: string | null;
-                                chapter?: string | null;
-                            };
                         };
                     };
                 };

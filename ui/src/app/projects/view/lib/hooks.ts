@@ -2,6 +2,7 @@ import { useDebounceFn } from "@/hooks/use-debounce";
 import { $api, invalidateQuery, type JsonBody } from "@/lib/api";
 import { useCallback } from "react";
 import { toast } from "sonner";
+import { closeTab, tabStore } from "./stores";
 
 export function useUpdateProject(id: string) {
   const update = $api.useMutation("put", "/projects/{id}");
@@ -27,6 +28,10 @@ export function useDeleteChapter(projectId: string) {
         onSuccess() {
           invalidateQuery("/projects/{projectId}/chapters");
           toast.success("Chapter deleted");
+
+          const href = `chapter/${id}`;
+          const tabs = tabStore.getState();
+          if (tabs.curTab === href) closeTab(href);
         },
         onError(err) {
           toast.error((err as Error).message);

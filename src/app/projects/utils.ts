@@ -215,7 +215,10 @@ export async function fetchImage(url: string, outDir: string) {
 
   const buffer = await res.arrayBuffer();
   const contentType = res.headers.get("content-type") || "image/jpeg";
-  const ext = contentType.split("/")[1] || "";
+  let ext = contentType.split("/")[1] || "";
+  if (ext === "octet-stream") {
+    ext = "jpeg";
+  }
   if (!["jpeg", "jpg", "png", "svg", "webp", "gif", "bmp"].includes(ext)) {
     throw new Error(`Unsupported image format: ${ext}`);
   }
@@ -282,28 +285,48 @@ function getDepth(el: HTMLElement) {
   return d;
 }
 
+function isEmpty(el: HTMLElement) {
+  const text = el.textContent?.replace(/\u00A0/g, " ").trim() ?? "";
+  const hasMedia = el.querySelector("img, svg");
+  return text === "" && !hasMedia;
+}
+
+function trimEmptyEdges(container: HTMLElement) {
+  const children = Array.from(container.children) as HTMLElement[];
+
+  let start = 0;
+  let end = children.length - 1;
+
+  while (start <= end && isEmpty(children[start]!)) start++;
+  while (end >= start && isEmpty(children[end]!)) end--;
+
+  children.slice(0, start).forEach((el) => el.remove());
+  children.slice(end + 1).forEach((el) => el.remove());
+}
+
 export function findContentSelector(html: string) {
   const dom = new JSDOM(html);
   const doc = dom.window.document;
   const scores = new Map<HTMLElement, number>();
 
-  const paragraphs = doc.querySelectorAll("p");
-  for (const p of paragraphs) {
-    const text = p.textContent?.trim() ?? "";
-    if (text.length < 40) continue;
+  const containers: NodeListOf<HTMLElement> = doc.body.querySelectorAll(
+    "div, article, section, main",
+  );
+  for (const el of containers) {
+    const textElements = el.querySelectorAll("p");
+    const text = [...textElements]
+      .map((p) => p.textContent?.trim() ?? "")
+      .join(" ");
+    if (textElements.length < 3 || text.length < 40) continue;
 
-    const parent = p.parentElement;
-    if (!parent) continue;
+    const depth = getDepth(el);
+    let score =
+      1 + textElements.length + Math.floor(text.length / 120) + depth * 5;
+    scores.set(el, (scores.get(el) || 0) + score);
 
-    const grand = parent.parentElement;
-    let score = 1 + Math.min(Math.floor(text.length / 120), 3);
-    scores.set(parent, (scores.get(parent) || 0) + score);
-
-    if (grand) {
-      scores.set(grand, (scores.get(grand) || 0) + score * 0.5);
-    }
-    if (parent.children.length > 3) {
-      scores.set(parent, (scores.get(parent) || 0) + 2);
+    const parent = el.parentElement;
+    if (parent) {
+      scores.set(parent, (scores.get(parent) || 0) + score * 0.5);
     }
   }
 
@@ -332,8 +355,7 @@ export function findContentSelector(html: string) {
     const textLength = el.textContent?.trim()?.length ?? 1;
     const linkCount = el.querySelectorAll("a").length;
     const linkDensity = linkCount / textLength;
-    const depth = getDepth(el);
-    const finalScore = score + depth * 10 - linkDensity * 10;
+    const finalScore = score + linkDensity * 10;
 
     if (finalScore > bestScore) {
       bestScore = finalScore;
@@ -343,25 +365,6 @@ export function findContentSelector(html: string) {
 
   if (!best) return null;
 
-  function isEmpty(el: HTMLElement) {
-    const text = el.textContent?.replace(/\u00A0/g, " ").trim() ?? "";
-    const hasMedia = el.querySelector("img, svg");
-    return text === "" && !hasMedia;
-  }
-
-  function trimEmptyEdges(container: HTMLElement) {
-    const children = Array.from(container.children) as HTMLElement[];
-
-    let start = 0;
-    let end = children.length - 1;
-
-    while (start <= end && isEmpty(children[start]!)) start++;
-    while (end >= start && isEmpty(children[end]!)) end--;
-
-    children.slice(0, start).forEach((el) => el.remove());
-    children.slice(end + 1).forEach((el) => el.remove());
-  }
-
   trimEmptyEdges(best);
 
   // Find chapter title
@@ -369,8 +372,12 @@ export function findContentSelector(html: string) {
   let titleSelector: string | null = "";
 
   const titleEl = [
-    ...best.querySelectorAll("h1, h2, h3, h4, b, strong, p:first-of-type"),
-  ].filter((el) => el.textContent?.trim().length)[0];
+    ...best.parentElement!.querySelectorAll(
+      "h1, h2, h3, h4, b, strong, p:first-of-type",
+    ),
+  ]
+    .filter((el) => el.textContent?.trim().length)
+    .sort((a, b) => a.tagName.localeCompare(b.tagName))[0];
 
   if (titleEl) {
     title = titleEl.textContent?.trim() || "";
@@ -384,4 +391,23 @@ export function findContentSelector(html: string) {
     title,
     titleSelector,
   };
+}
+
+export function findChapterTitle(doc: Document) {
+  // Find chapter title
+  let title = "";
+  let titleSelector: string | null = "";
+
+  const titleEl = [
+    ...doc.querySelectorAll("h1, h2, h3, h4, b, strong, p:first-of-type"),
+  ]
+    .filter((el) => el.textContent?.trim().length)
+    .sort((a, b) => a.tagName.localeCompare(b.tagName))[0];
+
+  if (titleEl) {
+    title = titleEl.textContent?.trim() || "";
+    titleSelector = getSelector(titleEl as HTMLElement, doc);
+  }
+
+  return { title, titleSelector };
 }

@@ -22,6 +22,7 @@ import {
   extractContent,
   extractElements,
   fetchImage,
+  findChapterTitle,
   findContentSelector,
   getCleanHTML,
 } from "./utils";
@@ -35,6 +36,8 @@ import chapters from "./chapters/routes";
 import { HTTPError } from "../../lib/error";
 import fs from "fs";
 import type { ProjectConfig } from "./types";
+import { Readability } from "@mozilla/readability";
+import { JSDOM } from "jsdom";
 
 const router = new Hono();
 
@@ -171,11 +174,13 @@ router.post(
       200: z.object({
         title: z.string(),
         chapter: z.string(),
+        author: z.string(),
         content: z.string(),
-        selectors: z.object({
-          content: z.string().nullish(),
-          chapter: z.string().nullish(),
-        }),
+        language: z.string(),
+        // selectors: z.object({
+        //   content: z.string().nullish(),
+        //   chapter: z.string().nullish(),
+        // }),
       }),
     },
   }),
@@ -193,15 +198,35 @@ router.post(
         page.evaluate(getCleanHTML),
       ]);
 
-      const selectors = findContentSelector(html);
-      const contentSelector = selectors?.selector || null;
-      const chapterSelector = selectors?.titleSelector || null;
+      const doc = new JSDOM(html);
+      const article = new Readability(doc.window.document).parse();
+
+      // const selectors = findContentSelector(html);
+      // const contentSelector = selectors?.selector || null;
+      // const chapterSelector = selectors?.titleSelector || null;
+
+      // return c.var.res({
+      //   title,
+      //   chapter: selectors?.title || "",
+      //   content: selectors?.html || "",
+      //   selectors: { content: contentSelector, chapter: chapterSelector },
+      // });
+
+      const contentEl = article?.content
+        ? new JSDOM(article?.content || "")
+        : doc;
+      const chapter = findChapterTitle(contentEl.window.document);
+
+      if (!article) {
+        throw new Error("Cannot extract content");
+      }
 
       return c.var.res({
-        title,
-        chapter: selectors?.title || "",
-        content: selectors?.html || "",
-        selectors: { content: contentSelector, chapter: chapterSelector },
+        title: article.siteName || title || "",
+        chapter: chapter?.title || article?.title || "",
+        author: article?.byline || "",
+        content: article?.content || "",
+        language: article?.lang || "",
       });
     } catch (err) {
       console.error(err);
@@ -262,7 +287,7 @@ router.post(
         fs.mkdirSync(outDir, { recursive: true });
       }
 
-      const cover = project.cover
+      cover = project.cover
         ? (await fetchImage(project.cover, "./img"))?.fullPath
         : undefined;
       const epub = await EpubGenMemory(
@@ -272,6 +297,13 @@ router.post(
           cover,
           lang: project.language || "en",
           ignoreFailedDownloads: true,
+          tocInTOC: true,
+          imageTransformer(image) {
+            if (image.url.startsWith("//")) {
+              image.url = "https:" + image.url;
+            }
+            return image;
+          },
         },
         contents,
       );

@@ -47,7 +47,7 @@ export default function Sidebar() {
   const { project } = useProjectContext();
   const [curTab, setTab] = usePersistedState(
     "projects/sidebar-tab",
-    tabs[0].id,
+    tabs[0]?.id,
   );
 
   const tab = useMemo(() => {
@@ -86,7 +86,7 @@ export default function Sidebar() {
             </Button>
           ))}
         </nav>
-        <aside className="bg-background flex flex-col items-stretch flex-1">
+        <aside className="bg-background flex flex-col items-stretch flex-1 overflow-hidden">
           <div className="px-4 py-3">
             <p className="text-xs uppercase truncate">{tab?.name || ""}</p>
           </div>

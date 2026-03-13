@@ -17,7 +17,7 @@ router.post(
       param: z.object({ projectId: z.string() }),
       json: CreateChapterSchema,
     },
-    responses: { 200: ChapterSchema.pick({ id: true }) },
+    responses: { 200: ChapterSchema.pick({ id: true, title: true }) },
   }),
   async (c) => {
     const { projectId } = c.req.valid("param");
@@ -26,7 +26,7 @@ router.post(
     const res = await db
       .insertInto("project_chapters")
       .values({ ...body, id: uuid(), projectId })
-      .returning("id")
+      .returning(["id", "title"])
       .executeTakeFirstOrThrow();
 
     return c.var.res(res);

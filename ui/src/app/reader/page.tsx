@@ -166,6 +166,7 @@ export default function ReaderPage() {
   useEffect(() => {
     const fetchBook = async () => {
       const file = await getBookData(bookKey);
+      if (!file) throw new Error("Cannot find book file!");
       openDoc(file);
     };
 

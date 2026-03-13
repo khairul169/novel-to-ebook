@@ -77,24 +77,26 @@ export async function getOfflineImage(url: string) {
 
 export async function getBookData(key: string) {
   const db = await getDB();
-
   const cached = await db.get("books", key);
-  if (cached) {
+
+  try {
+    const res = await fetch(API_URL + "/library/get?key=" + key);
+    if (!res.ok) throw new Error(res.statusText);
+
+    const buf = await res.arrayBuffer();
+    const disposition = res.headers.get("content-disposition");
+    const filename = disposition
+      ? disposition.split("filename=")[1]?.replace(/"/g, "")
+      : "book.epub";
+    const file = new File([buf], filename, {
+      type: "application/epub+zip",
+    });
+
+    // store for offline usage
+    await db.put("books", file, key);
+
+    return file;
+  } catch (err) {
     return cached;
   }
-
-  const res = await fetch(API_URL + "/library/get?key=" + key);
-  if (!res.ok) throw new Error(res.statusText);
-
-  const buf = await res.arrayBuffer();
-  const disposition = res.headers.get("content-disposition");
-  const filename = disposition
-    ? disposition.split("filename=")[1]?.replace(/"/g, "")
-    : "book.epub";
-  const file = new File([buf], filename, {
-    type: "application/epub+zip",
-  });
-
-  await db.put("books", file, key);
-  return file;
 }

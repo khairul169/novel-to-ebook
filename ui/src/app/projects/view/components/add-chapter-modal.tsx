@@ -18,6 +18,8 @@ import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
 import { useProjectContext } from "../lib/context";
 import { toast } from "sonner";
+import { openTab } from "../lib/stores";
+import ChapterEditor from "./chapter-editor";
 
 export const addChapterModal = createDisclosure();
 
@@ -46,9 +48,15 @@ export default function AddChapterModal() {
   const [isPending, setPending] = useState(false);
 
   const create = $api.useMutation("post", "/projects/{projectId}/chapters", {
-    onSuccess() {
+    onSuccess(data) {
       addChapterModal.setOpen(false);
       invalidateQuery("/projects/{projectId}/chapters");
+
+      openTab({
+        href: `chapter/${data.id}`,
+        title: data.title,
+        element: <ChapterEditor id={data.id} />,
+      });
     },
     onError(err) {
       toast.error((err as Error).message);
