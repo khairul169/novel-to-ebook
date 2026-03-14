@@ -1,7 +1,7 @@
 import type { BookRelocate } from "@/app/reader/lib/types";
 import { openDB, type DBSchema } from "idb";
 
-interface Database extends DBSchema {
+export interface Database extends DBSchema {
   queries: { key: string; value: string };
   images: { key: string; value: Blob };
   books: { key: string; value: File };
@@ -20,6 +20,8 @@ interface Database extends DBSchema {
     };
   };
 }
+
+export type DBValue<T extends keyof Database> = Database[T]["value"];
 
 export async function getDB() {
   return openDB<Database>("storvi", 1, {

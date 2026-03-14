@@ -94,7 +94,11 @@ router.get(
       200: z
         .object({
           key: z.string(),
+          name: z.string(),
           date: z.iso.date(),
+          location: z.any(),
+          metadata: z.any().nullish(),
+          cover: z.string().nullish(),
         })
         .array(),
     },
@@ -115,9 +119,11 @@ router.get(
         );
         return {
           key: i.key,
+          name: i.key.split("/").pop()?.split(".").slice(0, -1).join(".") || "",
           date: i.date,
           metadata: libItem?.metadata,
           cover: libItem?.cover,
+          location: JSON.parse(i.location),
         };
       })
       .filter((i) => !!i.metadata);

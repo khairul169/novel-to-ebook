@@ -196,7 +196,7 @@ export async function saveHistory(
       ),
     ),
     api.PUT("/library/progress", {
-      body: { key, location, date: date.toISOString() },
+      body: { key, location: data.location, date: date.toISOString() },
     }),
   ]);
 }
