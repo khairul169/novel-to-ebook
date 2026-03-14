@@ -23,7 +23,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { getByPath } from "@/lib/utils";
+import { getByPath, ucfirst } from "@/lib/utils";
 
 export default function SettingsModal() {
   const settings = useStore(settingsStore);
@@ -49,6 +49,26 @@ export default function SettingsModal() {
         </DialogHeader>
 
         <div className="space-y-2">
+          <Field orientation="horizontal">
+            <FieldLabel>Reading Mode</FieldLabel>
+            <Select
+              value={settings.flow}
+              onValueChange={(value) => setSettings("flow", value as never)}
+            >
+              <SelectTrigger className="w-full max-w-40">
+                <SelectValue placeholder="Select mode" />
+              </SelectTrigger>
+
+              <SelectContent>
+                {["paginated", "scrolled"].map((item) => (
+                  <SelectItem key={item} value={item}>
+                    {ucfirst(item)}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </Field>
+
           <Field orientation="horizontal">
             <FieldLabel>Font Family</FieldLabel>
             <Select

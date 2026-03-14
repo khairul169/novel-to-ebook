@@ -5,6 +5,7 @@ import type { ReaderStyles } from "./utils";
 import type { Paths, PathValue } from "@/lib/types";
 
 type SettingsStore = {
+  flow: "paginated" | "scrolled";
   styles: Omit<ReaderStyles, "colorScheme">;
 };
 
@@ -30,6 +31,7 @@ export const fontFamilies = [
 export const settingsStore = create<SettingsStore>()(
   persist<SettingsStore>(
     () => ({
+      flow: "paginated",
       styles: {
         spacing: 1.6,
         justify: true,
@@ -59,15 +61,15 @@ export function setSettings<P extends Paths<SettingsStore>>(
   value?: PathValue<SettingsStore, P>,
 ) {
   settingsStore.setState((state) => {
-    const styles = structuredClone(state.styles);
+    const newState = structuredClone(state);
 
     if (typeof pathOrObject === "string") {
-      setByPath(styles, pathOrObject.replace(/^styles\./, ""), value);
+      setByPath(newState, pathOrObject, value);
     } else {
-      deepMerge(styles, pathOrObject);
+      deepMerge(newState, pathOrObject);
     }
 
-    return { styles };
+    return newState;
   });
 }
 

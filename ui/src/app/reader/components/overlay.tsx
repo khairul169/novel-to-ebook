@@ -59,12 +59,17 @@ export default function Overlay({
     };
   }, []);
 
-  const onTouchEnd = useCallback((e: TouchEvent) => {
+  const onTouchEnd = useCallback((e: TouchEvent, doc: Document) => {
     const touch = e.changedTouches[0];
-    // const width = window.outerWidth;
-    // const ratio = touch.screenX / width;
+    const container = (doc.defaultView?.frameElement ||
+      touch.target) as HTMLElement;
+
+    const rectContainer = container!.getBoundingClientRect();
+    const x = rectContainer.left + touch.clientX;
+    const ratio = x / window.innerWidth;
     const start = touchStart.current || { x: 0, y: 0 };
     touchStart.current = null;
+    const touchArea = 1 / 3;
 
     // ignore swipe
     if (
@@ -73,14 +78,13 @@ export default function Overlay({
     )
       return;
 
-    // if (ratio < 0.25) {
-    //   // reader.prev();
-    // } else if (ratio > 0.75) {
-    //   // reader.next();
-    // } else {
-    // center tap
-    setSticky((s) => !s);
-    // }
+    if (ratio < touchArea) {
+      viewRef?.current?.prev();
+    } else if (ratio > touchArea * 2) {
+      viewRef?.current?.next();
+    } else {
+      setSticky((s) => !s);
+    }
   }, []);
 
   const onMouseMove = useCallback(
@@ -95,12 +99,14 @@ export default function Overlay({
     (doc: Document) => {
       doc.addEventListener("mousemove", onMouseMove);
       doc.addEventListener("touchstart", onTouchStart);
-      doc.addEventListener("touchend", onTouchEnd);
+
+      const touchEnd = (e: TouchEvent) => onTouchEnd(e, doc);
+      doc.addEventListener("touchend", touchEnd);
 
       return () => {
         doc.removeEventListener("mousemove", onMouseMove);
         doc.removeEventListener("touchstart", onTouchStart);
-        doc.removeEventListener("touchend", onTouchEnd);
+        doc.removeEventListener("touchend", touchEnd);
       };
     },
     [onMouseMove, onTouchStart, onTouchEnd],

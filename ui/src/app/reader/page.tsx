@@ -49,6 +49,7 @@ export default function ReaderPage() {
 
     doc.addEventListener("keydown", onKeyDown);
     doc.addEventListener("wheel", onWheel);
+
     overlayRef.current?.addDocListener(doc);
   };
 
@@ -65,7 +66,9 @@ export default function ReaderPage() {
   };
 
   const onWheel = (e: WheelEvent) => {
-    if (!viewRef.current) return;
+    const { flow } = settingsStore.getState();
+    if (!viewRef.current || flow === "scrolled") return;
+
     if (e.deltaY < 0) viewRef.current.goLeft();
     else viewRef.current.goRight();
   };
@@ -137,10 +140,10 @@ export default function ReaderPage() {
     view.renderer.setStyles?.(getCSS(styles));
 
     // enable pagination
-    view.renderer.setAttribute("flow", "paginated");
+    view.renderer.setAttribute("flow", settings.flow);
     view.renderer.setAttribute("gap", "2%");
     view.renderer.setAttribute("max-column-count", "2");
-    view.renderer.setAttribute("max-inline-size", "720px");
+    view.renderer.setAttribute("max-inline-size", "920px");
 
     // enable animation
     view.renderer.setAttribute("animated", "true");
@@ -165,6 +168,14 @@ export default function ReaderPage() {
     // update styles
     viewRef.current?.renderer.setStyles?.(getCSS(styles));
   }, [styles]);
+
+  useEffect(() => {
+    const view = viewRef.current;
+    if (!view) return;
+
+    // reader settings
+    view.renderer.setAttribute("flow", settings.flow);
+  }, [settings]);
 
   return (
     <div className="bg-background h-screen-dvh overflow-hidden flex flex-row items-stretch relative">
