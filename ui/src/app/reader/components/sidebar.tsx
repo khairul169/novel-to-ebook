@@ -55,7 +55,7 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
       <aside
         ref={sidebarRef}
         className={cn(
-          "w-[80%] max-w-60 pr-4 bg-sidebar fixed z-10 h-full transition-transform -translate-x-full",
+          "w-[80%] max-w-4/5 sm:max-w-3/5 md:max-w-60 pr-4 bg-sidebar fixed z-10 h-full transition-transform -translate-x-full",
           isSticky && "relative",
           isVisible || isSticky ? "translate-x-0" : "",
         )}

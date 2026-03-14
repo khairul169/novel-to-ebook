@@ -56,7 +56,7 @@ export interface FoliateView extends HTMLElement {
   open: (book: BookDoc) => Promise<void>;
   close: () => void;
   init: (options: { lastLocation: string }) => void;
-  goTo: (href: string) => void;
+  goTo: (href: string | number) => void;
   goToFraction: (fraction: number) => void;
   prev: (distance?: number) => void;
   next: (distance?: number) => void;

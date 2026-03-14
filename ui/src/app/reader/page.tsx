@@ -8,22 +8,22 @@ import {
   saveHistory,
   type ReaderStyles,
 } from "./lib/utils";
-import { ClockIcon, Loader2 } from "lucide-react";
-import dayjs from "dayjs";
+import { Loader2 } from "lucide-react";
 import Sidebar from "./components/sidebar";
 import { settingsStore } from "./lib/stores";
 import { useStore } from "zustand";
 import { appStore } from "@/stores/app.store";
 import { getBookData } from "@/hooks/use-offline";
-import type { HeaderRef } from "./components/header";
-import Header from "./components/header";
+import type { OverlayRef } from "./components/overlay";
+import Overlay from "./components/overlay";
+import Footer from "./components/footer";
 
 export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
   const viewRef = useRef<FoliateView | null>(null);
   const loadingRef = useRef(false);
   const isRestoredRef = useRef(false);
-  const headerRef = useRef<HeaderRef>(null!);
+  const overlayRef = useRef<OverlayRef>(null!);
 
   const [searchParams] = useSearchParams();
   const bookKey = searchParams.get("book") || "";
@@ -49,7 +49,7 @@ export default function ReaderPage() {
 
     doc.addEventListener("keydown", onKeyDown);
     doc.addEventListener("wheel", onWheel);
-    headerRef.current?.addDocListener(doc);
+    overlayRef.current?.addDocListener(doc);
   };
 
   const onRelocate = async (e: Event, book: BookDoc) => {
@@ -57,8 +57,6 @@ export default function ReaderPage() {
 
     const detail = (e as CustomEvent).detail;
     setCurState(detail);
-    console.log("store progress..", detail.fraction);
-
     saveHistory(bookKey, {
       location: detail,
       name: book?.metadata?.title || bookKey.split("/").pop() || "",
@@ -82,11 +80,11 @@ export default function ReaderPage() {
 
   useEffect(() => {
     document.addEventListener("keydown", onKeyDown);
-    document.addEventListener("wheel", onWheel);
+    containerRef.current?.addEventListener("wheel", onWheel);
 
     return () => {
       document.removeEventListener("keydown", onKeyDown);
-      document.removeEventListener("wheel", onWheel);
+      containerRef.current?.removeEventListener("wheel", onWheel);
     };
   }, []);
 
@@ -183,43 +181,18 @@ export default function ReaderPage() {
       />
 
       <div className="flex-1 flex flex-col items-stretch relative">
-        <Header ref={headerRef} curBook={curBook} />
+        <Overlay
+          ref={overlayRef}
+          curBook={curBook}
+          curState={curState}
+          containerRef={containerRef}
+          viewRef={viewRef}
+        />
 
         <div ref={containerRef} className="flex-1 overflow-hidden" />
 
-        <div
-          className="px-6 pb-4 flex items-center text-foreground/60 gap-4 text-xs hover:text-foreground/80 transition-colors"
-          style={{ background: settings.styles.theme?.[theme]?.background }}
-        >
-          <p className="truncate max-w-2xl text-sm">
-            {curState?.tocItem?.label || curBook?.metadata?.title || ""}
-          </p>
-          <div className="flex-1" />
-          <Time />
-          <span>&middot;</span>
-          {curState?.location && (
-            <p className="text-right">{`${curState?.location.current} / ${curState?.location.total} (${(curState?.fraction * 100).toFixed(1)}%)`}</p>
-          )}
-        </div>
+        <Footer curBook={curBook} curState={curState} />
       </div>
     </div>
   );
 }
-
-const Time = () => {
-  const [time, setTime] = useState(dayjs().format("HH:mm"));
-
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setTime(dayjs().format("HH:mm"));
-    }, 60 * 1000);
-    return () => clearInterval(interval);
-  }, []);
-
-  return (
-    <p>
-      <ClockIcon className="inline mr-1" size={14} />
-      {time}
-    </p>
-  );
-};

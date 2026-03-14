@@ -34,6 +34,7 @@ export const settingsStore = create<SettingsStore>()(
         spacing: 1.6,
         justify: true,
         hyphenate: true,
+        fontFamily: fontFamilies[0].value,
         fontSize: Math.round(16 * 1.2),
         theme: {
           dark: {
