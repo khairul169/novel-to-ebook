@@ -134,6 +134,7 @@ const LibraryList = ({
             </div>
 
             {item.coverHash != null && (
+              /* @ts-ignore */
               <BlurhashCanvas
                 hash={item.coverHash}
                 className="absolute z-1 inset-0 w-full h-full"

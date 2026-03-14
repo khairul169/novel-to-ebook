@@ -47,38 +47,41 @@ export function useOfflineApiQuery(
 
 const imagesCache = new Map<string, string>();
 
-export async function getOfflineImage(url: string) {
+export async function getOfflineImage(
+  url: string,
+  onDbCache?: (url: string) => void,
+) {
   if (imagesCache.has(url)) {
     return imagesCache.get(url)!;
   }
 
-  const db = await getDB();
+  const cachedBlob = await getDB().then((db) => db.get("images", url));
+  let cached: string | null = null;
+
+  if (cachedBlob) {
+    cached = URL.createObjectURL(cachedBlob);
+    imagesCache.set(url, cached);
+    onDbCache?.(cached);
+  }
 
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error("network");
 
     const blob = await res.blob();
-    await db.put("images", blob, url);
+    await getDB().then((db) => db.put("images", blob, url));
 
     const obj = URL.createObjectURL(blob);
     imagesCache.set(url, obj);
 
     return obj;
   } catch (e) {
-    const cached = await db.get("images", url);
     if (!cached) throw new Error("no cached image");
-
-    const obj = URL.createObjectURL(cached);
-    imagesCache.set(url, obj);
-    return obj;
+    return cached;
   }
 }
 
-export async function getBookData(key: string) {
-  const db = await getDB();
-  const cached = await db.get("books", key);
-
+async function fetchBook(key: string) {
   try {
     const res = await fetch(API_URL + "/library/get?key=" + key);
     if (!res.ok) throw new Error(res.statusText);
@@ -93,10 +96,29 @@ export async function getBookData(key: string) {
     });
 
     // store for offline usage
-    await db.put("books", file, key);
+    await getDB().then((db) => db.put("books", file, key));
 
     return file;
   } catch (err) {
+    throw err;
+  }
+}
+
+export async function getBookData(
+  key: string,
+  onFileChanged?: (file: File) => void,
+) {
+  const cached = await getDB().then((db) => db.get("books", key));
+  const promise = fetchBook(key);
+
+  if (cached) {
+    promise.then((file) => {
+      if (file.size !== cached.size) {
+        onFileChanged?.(file);
+      }
+    });
     return cached;
   }
+
+  return promise;
 }

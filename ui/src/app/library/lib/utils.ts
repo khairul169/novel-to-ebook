@@ -16,7 +16,7 @@ export function getLibraryTitle(opt?: {
   return "My Library";
 }
 
-async function syncHistories() {
+export async function syncHistories() {
   try {
     const { data } = await api.GET("/library/history");
     const histories = data || [];
@@ -46,12 +46,11 @@ async function syncHistories() {
     await tx.done;
   } catch (err) {
     console.error("Cannot sync histories!", err);
+    throw err;
   }
 }
 
 export async function getHistories() {
-  await syncHistories();
-
   const tx = await getDB().then((db) =>
     db.transaction("histories", "readonly"),
   );

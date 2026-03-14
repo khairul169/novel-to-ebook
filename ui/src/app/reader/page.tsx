@@ -17,6 +17,8 @@ import { getBookData } from "@/hooks/use-offline";
 import type { OverlayRef } from "./components/overlay";
 import Overlay from "./components/overlay";
 import Footer from "./components/footer";
+import { toast } from "sonner";
+import { Button } from "@/components/ui/button";
 
 export default function ReaderPage() {
   const containerRef = useRef<HTMLDivElement>(null!);
@@ -151,7 +153,11 @@ export default function ReaderPage() {
 
   useEffect(() => {
     const fetchBook = async () => {
-      const file = await getBookData(bookKey);
+      const file = await getBookData(bookKey, (file) => {
+        toast.info("Book file changed!", {
+          action: <Button onClick={() => openDoc(file)}>Refresh</Button>,
+        });
+      });
       if (!file) throw new Error("Cannot find book file!");
       openDoc(file);
     };

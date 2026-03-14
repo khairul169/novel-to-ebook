@@ -14,7 +14,7 @@ export default function OfflineImage({ src, fallback, ...props }: Props) {
 
     // let blobUrl: string | undefined;
 
-    getOfflineImage(src)
+    getOfflineImage(src, setImageSrc)
       .then((url) => {
         // blobUrl = url;
         setImageSrc(url);

@@ -539,14 +539,18 @@ export async function tryExtractContent(
     fontIdx < fontArr.length &&
     fontIdx < 5 // max 5 attempts
   ) {
-    const font = fontArr[fontIdx++];
-    const res = await decryptTextFromFont([content], { fontUrl: font });
+    fontIdx++;
 
-    if (res.map && res.result[0]) {
-      fontDecryptMap = { ...(fontDecryptMap || {}), ...res.map };
-      content = res.result[0];
-      hasNewDecryptMap = true;
-    }
+    try {
+      const font = fontArr[fontIdx];
+      const res = await decryptTextFromFont([content], { fontUrl: font });
+
+      if (res.map && res.result[0]) {
+        fontDecryptMap = { ...(fontDecryptMap || {}), ...res.map };
+        content = res.result[0];
+        hasNewDecryptMap = true;
+      }
+    } catch {}
   }
 
   const contentEl = new JSDOM(content);

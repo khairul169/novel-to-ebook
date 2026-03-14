@@ -11,8 +11,15 @@ import { serveStatic } from "hono/bun";
 import projects from "./app/projects/routes";
 import library from "./app/library/routes";
 import utility from "./app/utility/routes";
+import { waitFor } from "./lib/utils";
 
 const api = new Hono();
+
+// api.use("*", async (_, next) => {
+//   // simulate network delay
+//   await waitFor(1000 + Math.random() * 2000);
+//   return next();
+// });
 
 api.onError((error, c) => {
   let message = error.message;

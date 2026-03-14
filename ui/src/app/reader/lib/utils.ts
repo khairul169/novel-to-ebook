@@ -140,8 +140,10 @@ export async function getHistory(key: string): Promise<
   const cached = await getDB().then((db) => db.get("histories", key));
 
   try {
+    const signal = AbortSignal.timeout(3000);
     const { data } = await api.GET("/library/progress", {
       params: { query: { key } },
+      signal,
     });
     if (!data) {
       throw new Error("History not found");
