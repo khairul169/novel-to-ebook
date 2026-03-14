@@ -12,6 +12,7 @@ import { getLibraryTitle } from "./lib/utils";
 import { cn } from "@/lib/utils";
 import { useOfflineApiQuery } from "@/hooks/use-offline";
 import OfflineImage from "@/components/offline-image";
+import { BlurhashCanvas } from "react-blurhash";
 import { useHistories } from "./lib/hooks";
 import type { BookRelocate } from "../reader/lib/types";
 
@@ -82,6 +83,7 @@ type LibraryItem = {
   name?: string;
   metadata?: any;
   cover?: string | null;
+  coverHash?: string | null;
   parent?: string | null;
   isDirectory?: boolean;
 };
@@ -121,7 +123,7 @@ const LibraryList = ({
           className="text-foreground p-4 hover:bg-secondary"
           title={item.metadata?.title || item.name}
         >
-          <div className="w-full aspect-3/4 bg-background relative overflow-hidden">
+          <div className="w-full aspect-3/4 bg-primary/10 rounded relative overflow-hidden shadow">
             <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
               <p className="text-md line-clamp-3">
                 {item.metadata?.title || item.name}
@@ -131,17 +133,23 @@ const LibraryList = ({
               </p>
             </div>
 
+            {item.coverHash != null && (
+              <BlurhashCanvas
+                hash={item.coverHash}
+                className="absolute z-1 inset-0 w-full h-full"
+                width={3}
+                height={4}
+              />
+            )}
+
             <OfflineImage
               src={item.cover ? API_URL + item.cover : null}
               alt={item.name}
-              className="absolute z-1 inset-0 w-full h-full object-cover rounded overflow-hidden shadow"
-              onError={(e) => {
-                e.currentTarget.style.display = "none";
-              }}
+              className="absolute z-2 inset-0 w-full h-full object-cover"
             />
 
             {item.location?.fraction && (
-              <div className="absolute z-2 bottom-0 left-0 w-full bg-background/20 flex items-center justify-between">
+              <div className="absolute z-3 bottom-0 left-0 w-full bg-background/20 flex items-center justify-between">
                 <div
                   className="bg-green-500 h-0.75"
                   style={{ width: `${item.location.fraction * 100}%` }}

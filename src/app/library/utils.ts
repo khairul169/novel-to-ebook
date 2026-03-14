@@ -1,6 +1,8 @@
 import fs from "fs/promises";
 import path from "path";
 import EPub from "epub";
+import * as blurhash from "blurhash";
+import sharp from "sharp";
 
 export async function scanLibrary(paths: string[]) {
   const files = await Promise.all(
@@ -37,6 +39,7 @@ export async function scanLibrary(paths: string[]) {
               }>)
             | undefined = undefined;
           let cover: string | null = null;
+          let coverHash: string | null = null;
 
           if (entry.name.endsWith(".epub")) {
             const epub = new EPub(fullPath);
@@ -45,8 +48,15 @@ export async function scanLibrary(paths: string[]) {
 
             const coverId = (epub.metadata as any).cover;
             if (coverId) {
-              getCover = () => epub.getImage(coverId);
+              const image = await epub.getImage(coverId);
+              const coverData = await compressImage(image.data, 256);
+
+              getCover = async () => ({
+                data: coverData,
+                mimeType: "image/webp",
+              });
               cover = getCoverUrl(key);
+              coverHash = await createBlurHash(image.data);
             }
           }
 
@@ -59,6 +69,7 @@ export async function scanLibrary(paths: string[]) {
             isDirectory: entry.isDirectory(),
             metadata,
             cover,
+            coverHash,
             getCover,
           };
         }),
@@ -76,6 +87,34 @@ export async function scanLibrary(paths: string[]) {
   );
 
   return files.flat();
+}
+
+async function compressImage(image: Buffer, width: number) {
+  return sharp(image)
+    .resize({
+      width,
+      fit: sharp.fit.contain,
+    })
+    .webp({
+      quality: 80,
+    })
+    .toBuffer();
+}
+
+async function createBlurHash(buf: Buffer) {
+  const { data, info } = await sharp(buf)
+    .raw()
+    .ensureAlpha()
+    .resize({ width: 32, fit: "contain" })
+    .toBuffer({ resolveWithObject: true });
+
+  return blurhash.encode(
+    new Uint8ClampedArray(data),
+    info.width,
+    info.height,
+    3,
+    4,
+  );
 }
 
 export type LibraryItems = Awaited<ReturnType<typeof scanLibrary>>;

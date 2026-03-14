@@ -739,6 +739,7 @@ export interface paths {
                             fullPath: string;
                             parent: string;
                             cover?: string | null;
+                            coverHash?: string | null;
                             isDirectory: boolean;
                             /**
                              * @example {

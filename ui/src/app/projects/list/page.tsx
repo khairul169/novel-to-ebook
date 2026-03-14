@@ -61,6 +61,7 @@ export default function ProjectListPage() {
           <PlusIcon />
           <p>New</p>
         </button>
+
         {projects?.map((project) => (
           <Link
             key={project.id}
@@ -68,7 +69,7 @@ export default function ProjectListPage() {
             className="text-foreground p-4 hover:bg-secondary"
             title={project.title}
           >
-            <div className="w-full aspect-3/4 bg-background relative overflow-hidden">
+            <div className="w-full aspect-3/4 bg-primary/10 shadow rounded relative overflow-hidden">
               <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
                 <p className="text-md line-clamp-3">{project.title}</p>
                 <p className="text-sm mt-2 opacity-50">{project.author}</p>

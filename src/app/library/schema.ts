@@ -7,6 +7,7 @@ export const LibraryItemSchema = z.object({
   fullPath: z.string(),
   parent: z.string(),
   cover: z.string().nullish(),
+  coverHash: z.string().nullish(),
   isDirectory: z.boolean(),
   metadata: z
     .record(z.string(), z.string())
