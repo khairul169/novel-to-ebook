@@ -59,7 +59,7 @@ const fieldVariants = cva(
       orientation: {
         vertical: ["flex-col *:w-full [&>.sr-only]:w-auto"],
         horizontal: [
-          "flex-row items-center",
+          "flex-row items-center *:data-[slot=field-label]:text-sm *:data-[slot=field-label]:font-normal",
           "*:data-[slot=field-label]:flex-auto",
           "has-[>[data-slot=field-content]]:items-start has-[>[data-slot=field-content]]:[&>[role=checkbox],[role=radio]]:mt-px",
         ],

@@ -193,3 +193,44 @@ export function sortableMoveArray<T>(items: T[], event: any): T[] {
 
   return copy;
 }
+
+export function setByPath(obj: any, path: string, value: any) {
+  const keys = path.split(".");
+  let cur = obj;
+
+  for (let i = 0; i < keys.length - 1; i++) {
+    const k = keys[i];
+    cur[k] ??= {};
+    cur = cur[k];
+  }
+
+  cur[keys[keys.length - 1]] = value;
+}
+
+export function getByPath<T = any>(obj: any, path: string): T {
+  const keys = path.split(".");
+  let cur = obj;
+
+  for (let i = 0; i < keys.length; i++) {
+    const k = keys[i];
+    if (cur[k] == null) return null!;
+    cur = cur[k];
+  }
+
+  return cur as T;
+}
+
+export function deepMerge(target: any, source: any) {
+  for (const key in source) {
+    if (
+      source[key] &&
+      typeof source[key] === "object" &&
+      !Array.isArray(source[key])
+    ) {
+      target[key] ??= {};
+      deepMerge(target[key], source[key]);
+    } else {
+      target[key] = source[key];
+    }
+  }
+}

@@ -1,6 +1,7 @@
 import api from "@/lib/api";
 import { getDB } from "@/lib/db";
 import type { BookRelocate } from "./types";
+import { fontFamilies } from "./stores";
 
 export type ReaderTheme = {
   background?: string;
@@ -34,9 +35,11 @@ export function getCSS({
 }: ReaderStyles) {
   return `
     @namespace epub "http://www.idpf.org/2007/ops";
-    @import url('https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&display=swap');
+    :root {
+      --theme-bg-color: ${theme?.[colorScheme]?.background || "#222"};
+    }
     html {
-        color-scheme: light dark;
+      color-scheme: ${colorScheme};
     }
     html, body {
       padding: ${padding};
@@ -108,11 +111,14 @@ const additionalFonts = [
     href: "https://fonts.gstatic.com",
     crossOrigin: "true",
   },
-  {
-    rel: "stylesheet",
-    href: "https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,100..900;1,100..900&display=swap",
-  },
 ];
+
+fontFamilies.forEach((font) => {
+  additionalFonts.push({
+    rel: "stylesheet",
+    href: `https://fonts.googleapis.com/css2?family=${font.label}:ital,wght@0,100..900;1,100..900&display=swap`,
+  });
+});
 
 export function injectAdditionalLinks(doc: Document) {
   additionalFonts.forEach((link) => {
