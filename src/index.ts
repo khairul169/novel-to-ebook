@@ -1,19 +1,20 @@
 import { Hono } from "hono";
 import { proxy } from "hono/proxy";
-import { showRoutes } from "hono/dev";
+// import { showRoutes } from "hono/dev";
 import { createOpenApiDocument } from "hono-zod-openapi";
 import { HTTPException } from "hono/http-exception";
 import { Scalar } from "@scalar/hono-api-reference";
 import { initScheduler } from "./scheduler";
 import { runMigration } from "./db/migrate";
+import { serveStatic } from "hono/bun";
 
 import projects from "./app/projects/routes";
 import library from "./app/library/routes";
 import utility from "./app/utility/routes";
 
-const app = new Hono();
+const api = new Hono();
 
-app.onError((error, c) => {
+api.onError((error, c) => {
   let message = error.message;
   let status = 500;
   let code: string | undefined = undefined;
@@ -31,12 +32,12 @@ app.onError((error, c) => {
 });
 
 // App routes
-app.route("/projects", projects);
-app.route("/library", library);
-app.route("/utility", utility);
+api.route("/projects", projects);
+api.route("/library", library);
+api.route("/utility", utility);
 
 // CORS Proxy
-app.get("/proxy/*", async (c) => {
+api.get("/proxy/*", async (c) => {
   const url = new URL(c.req.url);
   const target = url.pathname.replace("/proxy/", "");
   return proxy(target);
@@ -45,7 +46,7 @@ app.get("/proxy/*", async (c) => {
 // API docs
 if (process.env.NODE_ENV !== "production") {
   createOpenApiDocument(
-    app,
+    api,
     {
       info: {
         title: "Storvi API",
@@ -54,15 +55,19 @@ if (process.env.NODE_ENV !== "production") {
     },
     { routeName: "openapi.json" },
   );
-  app.get(
+  api.get(
     "/doc",
     Scalar({
       url: "/openapi.json",
       defaultHttpClient: { targetKey: "node", clientKey: "fetch" },
     }),
   );
-  showRoutes(app);
+  // showRoutes(api);
 }
+
+const app = new Hono();
+app.route("/api", api);
+app.get("*", serveStatic({ root: "./ui/dist" }));
 
 const PORT = process.env.PORT || 3000;
 console.log(`Listening on http://localhost:${PORT}`);
