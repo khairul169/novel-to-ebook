@@ -6,14 +6,12 @@ import {
   GetLibraryResponseSchema,
   GetCoverRequestSchema,
   GetCoverResponseSchema,
+  LibraryItemSchema,
 } from "./schema";
 import { HTTPError } from "../../lib/error";
-import fs from "fs/promises";
 import { getLibrary } from "./context";
 import z from "zod";
 import db from "../../db";
-import { sql } from "kysely";
-import { getCoverUrl } from "./utils";
 
 const router = new Hono();
 
@@ -26,6 +24,27 @@ router.get(
   }),
   async (c) => {
     return c.var.res(getLibrary());
+  },
+);
+
+router.get(
+  "/detail",
+  openApi({
+    tags: ["Library"],
+    summary: "Get item detail",
+    request: { query: GetLibraryRequestSchema },
+    responses: {
+      200: LibraryItemSchema,
+    },
+  }),
+  async (c) => {
+    const { key } = c.req.valid("query");
+    const item = getLibrary().find((i) => i.key === key && !i.isDirectory);
+    if (!item) {
+      throw new HTTPError("Library item not found", { status: 404 });
+    }
+
+    return c.var.res(item);
   },
 );
 

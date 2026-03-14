@@ -3,6 +3,9 @@ import path from "path";
 import EPub from "epub";
 import * as blurhash from "blurhash";
 import sharp from "sharp";
+import { pdfToImg } from "pdftoimg-js";
+
+const supportExt = ["epub", "pdf"];
 
 export async function scanLibrary(paths: string[]) {
   const files = await Promise.all(
@@ -16,7 +19,10 @@ export async function scanLibrary(paths: string[]) {
 
       entries = entries.filter((entry) => {
         if (entry.isDirectory()) return true;
-        if (entry.isFile() && entry.name.endsWith(".epub")) return true;
+        if (entry.isFile()) {
+          const ext = entry.name.split(".").pop();
+          return supportExt.includes(ext?.toLowerCase() ?? "");
+        }
         return false;
       });
 
@@ -31,7 +37,9 @@ export async function scanLibrary(paths: string[]) {
             .replaceAll("..", "");
           const key = relative.replaceAll("\\", "/");
 
-          let metadata: Record<string, string> | undefined = undefined;
+          let metadata: Record<string, string> = {
+            title: entry.name.split(".").slice(0, -1).join("."),
+          };
           let getCover:
             | (() => Promise<{
                 data: Buffer<ArrayBufferLike>;
@@ -61,6 +69,29 @@ export async function scanLibrary(paths: string[]) {
               } catch (err) {
                 console.error(err);
               }
+            }
+          }
+
+          if (entry.name.endsWith(".pdf")) {
+            const coverImg = await pdfToImg(fullPath, {
+              pages: "firstPage",
+              imgType: "jpg",
+            });
+            const coverBuf = Buffer.from(
+              coverImg.replace("data:image/jpeg;base64,", ""),
+              "base64",
+            );
+
+            try {
+              const coverData = await compressImage(coverBuf, 256);
+              getCover = async () => ({
+                data: coverData,
+                mimeType: "image/webp",
+              });
+              cover = getCoverUrl(key);
+              coverHash = await createBlurHash(coverData);
+            } catch (err) {
+              console.error(err);
             }
           }
 

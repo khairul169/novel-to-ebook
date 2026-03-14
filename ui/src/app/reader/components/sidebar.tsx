@@ -7,6 +7,9 @@ import { sidebarStore } from "../lib/stores";
 import { useEffect, useRef } from "react";
 import { useReaderTheme } from "../lib/hooks";
 import BackButton from "@/components/ui/back-button";
+import { useSearchParams } from "react-router";
+import { $api, API_URL } from "@/lib/api";
+import OfflineImage from "@/components/offline-image";
 
 type Props = {
   book?: BookDoc | null;
@@ -19,6 +22,12 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
   const isHoverRef = useRef(false);
   const { isVisible, isSticky } = useStore(sidebarStore);
   const readerTheme = useReaderTheme();
+  const [searchParams] = useSearchParams();
+  const bookKey = searchParams.get("book");
+
+  const { data: details } = $api.useQuery("get", "/library/detail", {
+    params: { query: { key: bookKey || "" } },
+  });
 
   useEffect(() => {
     // show sidebar on hover left side
@@ -83,7 +92,26 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
             </Button>
           </div>
 
-          <div className="p-1 overflow-y-auto flex-1">
+          <div className="flex items-center gap-2 p-3">
+            {details?.cover ? (
+              <OfflineImage
+                src={API_URL + details?.cover}
+                className="w-12 aspect-3/4 object-cover mx-auto rounded shrink-0"
+              />
+            ) : null}
+            <div className="flex-1">
+              <p className="text-xs font-medium line-clamp-3">
+                {details?.metadata?.title}
+              </p>
+              <p className="text-xs mt-0.5 text-muted-foreground">
+                {details?.metadata?.author ||
+                  details?.metadata?.creator ||
+                  details?.metadata?.publisher}
+              </p>
+            </div>
+          </div>
+
+          <div className="p-1 pt-0 overflow-y-auto flex-1">
             {book?.toc?.map((item) => (
               <Button
                 key={item.href}
