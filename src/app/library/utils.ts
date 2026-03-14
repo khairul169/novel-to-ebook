@@ -48,15 +48,19 @@ export async function scanLibrary(paths: string[]) {
 
             const coverId = (epub.metadata as any).cover;
             if (coverId) {
-              const image = await epub.getImage(coverId);
-              const coverData = await compressImage(image.data, 256);
+              try {
+                const image = await epub.getImage(coverId);
+                const coverData = await compressImage(image.data, 256);
 
-              getCover = async () => ({
-                data: coverData,
-                mimeType: "image/webp",
-              });
-              cover = getCoverUrl(key);
-              coverHash = await createBlurHash(image.data);
+                getCover = async () => ({
+                  data: coverData,
+                  mimeType: "image/webp",
+                });
+                cover = getCoverUrl(key);
+                coverHash = await createBlurHash(image.data);
+              } catch (err) {
+                console.error(err);
+              }
             }
           }
 
