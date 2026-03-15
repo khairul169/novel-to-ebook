@@ -186,8 +186,9 @@ export default function ReaderPage() {
   return (
     <div className="bg-background h-screen-dvh overflow-hidden flex flex-row items-stretch relative">
       {!curState && (
-        <div className="absolute inset-0 bg-black/80 w-full h-full z-5 flex items-center justify-center">
+        <div className="absolute inset-0 bg-background/60 text-foreground w-full h-full z-5 flex flex-col gap-2 items-center justify-center">
           <Loader2 className="animate-spin" size={32} />
+          <span>Please wait...</span>
         </div>
       )}
 
