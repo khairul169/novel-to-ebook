@@ -32,7 +32,7 @@ export default function Sidebar({ book, curState, onTocClick }: Props) {
   useEffect(() => {
     // show sidebar on hover left side
     const onMouseMove = (e: MouseEvent) => {
-      if (e.clientY < 100) return;
+      if (e.clientY < 100 || e.clientY > window.innerHeight - 100) return;
 
       if (e.clientX < Math.max(window.innerWidth * 0.05, 80)) {
         sidebarStore.setState({ isVisible: true });
