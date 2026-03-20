@@ -1,5 +1,16 @@
 import { cn } from "@/lib/utils";
-import { useRef, useState, useCallback, useMemo, useEffect } from "react";
+import {
+  useRef,
+  useState,
+  useCallback,
+  useMemo,
+  useEffect,
+  useImperativeHandle,
+} from "react";
+
+export type ScreenshotViewerRef = {
+  getHoveredElement: () => any | null;
+};
 
 type Props = {
   screenshot?: string | null;
@@ -9,8 +20,10 @@ type Props = {
   excludeElements?: string[];
   pageSize?: { width: number; height: number } | null;
   isSelecting?: boolean;
+  disableDepthSelect?: boolean;
   scale?: number;
   onSelect?: ((el: any) => void) | null;
+  ref?: React.RefObject<ScreenshotViewerRef> | null;
 };
 
 const ScreenshotViewer = ({
@@ -22,6 +35,8 @@ const ScreenshotViewer = ({
   pageSize,
   isSelecting,
   onSelect,
+  disableDepthSelect = false,
+  ref,
   ...props
 }: Props) => {
   const containerRef = useRef<HTMLDivElement>(null!);
@@ -131,7 +146,7 @@ const ScreenshotViewer = ({
 
   const handleWheel = useCallback(
     (e: WheelEvent) => {
-      if (!isSelecting || hitsAtCursor.length < 2) {
+      if (!isSelecting || hitsAtCursor.length < 2 || disableDepthSelect) {
         return;
       }
 
@@ -145,7 +160,7 @@ const ScreenshotViewer = ({
         return next;
       });
     },
-    [isSelecting, hitsAtCursor, setHoveredElement],
+    [isSelecting, hitsAtCursor, setHoveredElement, disableDepthSelect],
   );
 
   const handleClick = useCallback(
@@ -172,6 +187,14 @@ const ScreenshotViewer = ({
   }, [handleWheel]);
 
   const selectedEl = elementList.find((el) => el.selector === selectedSelector);
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      getHoveredElement: () => hoveredElement,
+    }),
+    [hoveredElement],
+  );
 
   return (
     <div

@@ -8,11 +8,22 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { Field, FieldLabel } from "@/components/ui/field";
-import { InputGroup, InputGroupInput } from "@/components/ui/input-group";
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from "@/components/ui/input-group";
 import api, { $api, invalidateQuery, type JsonBody } from "@/lib/api";
 import { createDisclosure } from "@/lib/store";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { BookSearchIcon, LinkIcon, NotebookPenIcon } from "lucide-react";
+import {
+  BookSearchIcon,
+  ChevronLeftIcon,
+  LinkIcon,
+  NotebookPenIcon,
+  SquareDashedMousePointerIcon,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm, useWatch } from "react-hook-form";
 import z from "zod";
@@ -21,6 +32,7 @@ import { toast } from "sonner";
 import { fontDecryptMapModal, type FontDecryptData } from "./font-decrypt-map";
 import { openEditorTab } from "../lib/utils";
 import { importTOCModal } from "./import-toc-dialog";
+import { customSelectorModal } from "./custom-selector-modal";
 
 export const addChapterModal = createDisclosure();
 
@@ -32,6 +44,7 @@ const schema = z.union([
   z.object({
     type: z.literal("link"),
     url: z.url().min(1),
+    selector: z.string().nullish(),
   }),
   z.object({ type: z.null() }),
 ]);
@@ -61,7 +74,8 @@ export default function AddChapterModal() {
 
   useEffect(() => {
     if (open) {
-      form.reset();
+      // form.setValue("type", null);
+      form.setValue("url", "");
     }
   }, [open]);
 
@@ -81,6 +95,7 @@ export default function AddChapterModal() {
           body: {
             projectId: project.id,
             url: values.url!,
+            selector: values.selector,
           },
         });
 
@@ -129,7 +144,18 @@ export default function AddChapterModal() {
     <Dialog open={open} onOpenChange={addChapterModal.setOpen}>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Add Chapter</DialogTitle>
+          <div className="flex items-center gap-1">
+            {type != null && (
+              <Button
+                variant="ghost"
+                className="-ml-4"
+                onClick={() => form.setValue("type", null)}
+              >
+                <ChevronLeftIcon />
+              </Button>
+            )}
+            <DialogTitle>Add Chapter</DialogTitle>
+          </div>
           <DialogDescription>
             Select type and add new chapter to the book
           </DialogDescription>
@@ -192,6 +218,34 @@ export default function AddChapterModal() {
                       placeholder="https://"
                       {...form.register("url")}
                     />
+                  </InputGroup>
+                </Field>
+
+                <Field>
+                  <FieldLabel>Custom Selector</FieldLabel>
+                  <InputGroup>
+                    <InputGroupInput
+                      placeholder="optional, e.g. body > article"
+                      {...form.register("selector")}
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <InputGroupButton
+                        size="sm"
+                        onClick={() => {
+                          const url = form.getValues("url");
+                          if (!url) return;
+                          customSelectorModal.onOpen({
+                            url,
+                            onSelect(selector) {
+                              form.setValue("selector", selector);
+                            },
+                          });
+                        }}
+                      >
+                        <SquareDashedMousePointerIcon />
+                        Pick
+                      </InputGroupButton>
+                    </InputGroupAddon>
                   </InputGroup>
                 </Field>
               </div>

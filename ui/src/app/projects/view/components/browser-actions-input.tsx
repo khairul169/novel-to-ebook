@@ -84,6 +84,7 @@ export default function BrowserActionsInput({
                   <SelectItem value="input">Input</SelectItem>
                   <SelectItem value="scroll">Scroll</SelectItem>
                   <SelectItem value="wait">Wait</SelectItem>
+                  <SelectItem value="block">Block Element</SelectItem>
                 </SelectContent>
               </Select>
 
@@ -92,7 +93,7 @@ export default function BrowserActionsInput({
               </Button>
             </div>
 
-            {action.type === "click" && (
+            {(action.type === "click" || action.type === "block") && (
               <div className="ml-6 mt-2 space-y-2">
                 <InputGroup>
                   <InputGroupInput
@@ -121,24 +122,26 @@ export default function BrowserActionsInput({
                   </InputGroupAddon>
                 </InputGroup>
 
-                <InputGroup>
-                  <InputGroupInput
-                    className="flex-1"
-                    placeholder="Wait for ms (optional)"
-                    value={action.data?.waitFor || ""}
-                    onChange={(e) =>
-                      onValueChange(idx, {
-                        data: {
-                          ...action.data,
-                          waitFor: Number(e.target.value) || 0,
-                        },
-                      })
-                    }
-                  />
-                  <InputGroupAddon align="inline-end">
-                    <ClockIcon />
-                  </InputGroupAddon>
-                </InputGroup>
+                {action.type === "click" && (
+                  <InputGroup>
+                    <InputGroupInput
+                      className="flex-1"
+                      placeholder="Wait for ms (optional)"
+                      value={action.data?.waitFor || ""}
+                      onChange={(e) =>
+                        onValueChange(idx, {
+                          data: {
+                            ...action.data,
+                            waitFor: Number(e.target.value) || 0,
+                          },
+                        })
+                      }
+                    />
+                    <InputGroupAddon align="inline-end">
+                      <ClockIcon />
+                    </InputGroupAddon>
+                  </InputGroup>
+                )}
               </div>
             )}
 

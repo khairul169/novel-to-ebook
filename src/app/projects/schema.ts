@@ -86,11 +86,19 @@ export const InputActionSchema = z.object({
   }),
 });
 
+export const BlockElementActionSchema = z.object({
+  type: z.literal("block"),
+  data: z.object({
+    selector: z.string(),
+  }),
+});
+
 export const ActionSchema = z.union([
   ClickActionSchema,
   ScrollActionSchema,
   WaitActionSchema,
   InputActionSchema,
+  BlockElementActionSchema,
 ]);
 
 export type Action = z.infer<typeof ActionSchema>;
@@ -131,6 +139,7 @@ export const SnapshotRequestSchema = z.object({
   actions: z.array(ActionSchema).optional(),
   anchorTextContains: z.boolean().optional(),
   ignoreDuplicates: z.boolean().optional(),
+  blockList: z.array(z.string()).optional(),
 });
 
 const extractRequestSelectors = z.object(

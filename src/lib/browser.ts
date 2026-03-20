@@ -189,6 +189,13 @@ export async function execActions(
       await page.type(data.selector, data.text);
     }
 
+    if (type === "block") {
+      await page.evaluate((sel) => {
+        const el = document.querySelector(sel) as HTMLAnchorElement;
+        el?.click();
+      }, data.selector);
+    }
+
     if (opts?.callback) {
       await opts.callback(action);
     }

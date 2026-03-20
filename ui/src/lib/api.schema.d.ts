@@ -499,6 +499,7 @@ export interface paths {
                         projectId?: string | null;
                         /** Format: uri */
                         url: string;
+                        selector?: string | null;
                     };
                 };
             };
@@ -643,6 +644,7 @@ export interface paths {
                         })[];
                         anchorTextContains?: boolean;
                         ignoreDuplicates?: boolean;
+                        blockList?: string[];
                     };
                 };
             };

@@ -174,6 +174,7 @@ router.post(
       json: z.object({
         projectId: z.string().nullish(),
         url: z.url(),
+        selector: z.string().nullish(),
       }),
     },
     responses: {
@@ -189,7 +190,7 @@ router.post(
     },
   }),
   async (c) => {
-    const { projectId, url } = c.req.valid("json");
+    const { projectId, url, selector } = c.req.valid("json");
 
     let page: Page | null = null;
 
@@ -201,7 +202,10 @@ router.post(
         ? await getProjectConfig(projectId).then((i) => i.fontDecryptMap)
         : null;
 
-      const res = await tryExtractContent(page, url, { fontDecryptMap });
+      const res = await tryExtractContent(page, url, {
+        fontDecryptMap,
+        selector,
+      });
 
       if (res.hasNewDecryptMap && projectId) {
         await updateProjectConfig(projectId, {
@@ -369,6 +373,17 @@ router.post(
         };
 
         let ssInterval: NodeJS.Timeout | null = null;
+
+        if (body.blockList && body.blockList.length > 0) {
+          await page.evaluate((list) => {
+            for (const selector of list) {
+              const elements = document.querySelectorAll(selector);
+              for (const el of elements) {
+                el.remove();
+              }
+            }
+          }, body.blockList);
+        }
 
         if (actions) {
           await sendScreenshot();

@@ -159,6 +159,11 @@ export function getCleanHTML() {
     "noscript",
     "iframe",
     "video",
+    "[role='dialog']",
+    "[aria-modal='true']",
+    "[tabindex='-1']",
+    "[class*='dialog']",
+    "[class*='modal']",
   ];
   tagsToRemove.forEach((tag) => {
     document.querySelectorAll(tag).forEach((el) => el.remove());
@@ -444,7 +449,18 @@ export function extractFonts(page: Page) {
   return fonts;
 }
 
-export async function extractArticle(html: string) {
+export async function extractArticle(html: string, selector?: string | null) {
+  if (selector) {
+    const $ = cheerio.load(html);
+    const content = $(selector).html()?.trim();
+    return {
+      title: "",
+      author: "",
+      content,
+      language: "",
+    };
+  }
+
   try {
     const article = await extractus.extractFromHtml(html);
     if (!article?.content || article.content.length < 320) {
@@ -506,7 +522,10 @@ export function findChapterTitle(doc: Document) {
 export async function tryExtractContent(
   page: Page,
   url: string,
-  options?: { fontDecryptMap?: Record<string, string> | null },
+  options?: {
+    fontDecryptMap?: Record<string, string> | null;
+    selector?: string | null;
+  },
 ) {
   const fonts = extractFonts(page);
 
@@ -516,7 +535,7 @@ export async function tryExtractContent(
     page.evaluate(getCleanHTML),
   ]);
 
-  const article = await extractArticle(html);
+  const article = await extractArticle(html, options?.selector);
   let content = article?.content || "";
   if (!article || !content) {
     throw new Error("Cannot extract content");
