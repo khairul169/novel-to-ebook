@@ -10,6 +10,7 @@ import RenameChapterModal from "./components/rename-chapter-modal";
 import FontDecryptMapModal from "./components/font-decrypt-map";
 import ImportTOCDialog from "./components/import-toc-dialog";
 import CustomSelectorModal from "./components/custom-selector-modal";
+import TranslateModal from "./components/translate-modal";
 
 export default function ProjectViewPage() {
   const { id } = useParams() as { id: string };
@@ -34,6 +35,7 @@ export default function ProjectViewPage() {
       <FontDecryptMapModal />
       <ImportTOCDialog />
       <CustomSelectorModal />
+      <TranslateModal />
     </ProjectContext.Provider>
   );
 }

@@ -4,6 +4,10 @@ import { useEffect } from "react";
 import { toast } from "sonner";
 import { MinimalTiptapEditor } from "@/components/ui/minimal-tiptap";
 import useMinimalTiptapEditor from "@/components/ui/minimal-tiptap/hooks/use-minimal-tiptap";
+import ToolbarButton from "@/components/ui/minimal-tiptap/components/toolbar-button";
+import { LanguagesIcon } from "lucide-react";
+import { Separator } from "@/components/ui/separator";
+import { translateModal } from "./translate-modal";
 
 type Props = {
   id: number;
@@ -69,6 +73,25 @@ export default function ChapterEditor({ id }: Props) {
       editor={editor}
       className="flex-1 flex-col overflow-hidden ring-0! border-0!"
       editorContentClassName="p-8 flex-1 overflow-auto"
+      additionalToolbar={
+        <>
+          <Separator orientation="vertical" className="mx-2" />
+          <ToolbarButton
+            tooltip="Translate"
+            aria-label="Translate"
+            onClick={() =>
+              translateModal.onOpen({
+                text: editor?.getHTML() || "",
+                onSave(text) {
+                  editor?.commands.setContent(text);
+                },
+              })
+            }
+          >
+            <LanguagesIcon />
+          </ToolbarButton>
+        </>
+      }
     />
   );
 }

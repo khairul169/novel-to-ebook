@@ -23,9 +23,16 @@ export interface MinimalTiptapProps extends Omit<
   onChange?: (value: Content) => void;
   className?: string;
   editorContentClassName?: string;
+  additionalToolbar?: React.ReactNode;
 }
 
-const Toolbar = ({ editor }: { editor: Editor }) => (
+const Toolbar = ({
+  editor,
+  additionalToolbar,
+}: {
+  editor: Editor;
+  additionalToolbar?: React.ReactNode;
+}) => (
   <div className="border-border flex h-12 shrink-0 overflow-x-auto border-b p-2">
     <div className="flex w-max items-center gap-px">
       <SectionOne editor={editor} activeLevels={[1, 2, 3, 4, 5, 6]} />
@@ -64,6 +71,8 @@ const Toolbar = ({ editor }: { editor: Editor }) => (
         activeActions={["codeBlock", "blockquote", "horizontalRule"]}
         mainActionCount={0}
       />
+
+      {additionalToolbar}
     </div>
   </div>
 );
@@ -72,6 +81,7 @@ export const MinimalTiptapEditor = ({
   editor,
   className,
   editorContentClassName,
+  additionalToolbar,
 }: MinimalTiptapProps) => {
   if (!editor) {
     return null;
@@ -83,6 +93,7 @@ export const MinimalTiptapEditor = ({
         editor={editor}
         className={className}
         editorContentClassName={editorContentClassName}
+        additionalToolbar={additionalToolbar}
       />
     </EditorContext.Provider>
   );
@@ -96,6 +107,7 @@ export const MainMinimalTiptapEditor = ({
   editor: providedEditor,
   className,
   editorContentClassName,
+  additionalToolbar,
 }: MinimalTiptapProps & { editor: Editor }) => {
   const { editor } = useTiptapEditor(providedEditor);
 
@@ -113,7 +125,7 @@ export const MainMinimalTiptapEditor = ({
         className,
       )}
     >
-      <Toolbar editor={editor} />
+      <Toolbar editor={editor} additionalToolbar={additionalToolbar} />
       <EditorContent
         editor={editor}
         className={cn("minimal-tiptap-editor", editorContentClassName)}
