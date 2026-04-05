@@ -5,8 +5,7 @@ import { cn, getRelativeTime } from "@/lib/utils";
 import { useEffect, useMemo, useRef } from "react";
 import { Link } from "react-router";
 import { BlurhashCanvas } from "react-blurhash";
-import { BookIcon, ClockIcon, EyeIcon, UserIcon } from "lucide-react";
-import { ReaderIcon } from "@radix-ui/react-icons";
+import { EyeIcon, UserIcon } from "lucide-react";
 
 export type LibraryItem = {
   key: string;
@@ -35,7 +34,7 @@ type Props = {
 
 const LibraryList = ({ items, search, baseDir, horizontal, view }: Props) => {
   const scrollRef = useRef<HTMLDivElement>(null!);
-  const { mode = "grid", orderBy = "name", sort = 1 } = view || {};
+  const { mode = "grid", orderBy, sort = 1 } = view || {};
 
   useEffect(() => {
     const el = scrollRef.current;

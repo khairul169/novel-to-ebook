@@ -641,6 +641,12 @@ export interface paths {
                                 selector: string;
                                 text: string;
                             };
+                        } | {
+                            /** @constant */
+                            type: "block";
+                            data: {
+                                selector: string;
+                            };
                         })[];
                         anchorTextContains?: boolean;
                         ignoreDuplicates?: boolean;
