@@ -2,6 +2,10 @@ import { clsx, type ClassValue } from "clsx";
 import { toast } from "sonner";
 import { twMerge } from "tailwind-merge";
 import sanitizeHtml from "sanitize-html";
+import relativeTime from "dayjs/plugin/relativeTime";
+import dayjs from "dayjs";
+
+dayjs.extend(relativeTime);
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -237,4 +241,8 @@ export function deepMerge(target: any, source: any) {
 
 export function ucfirst(str: string) {
   return str.charAt(0).toUpperCase() + str.slice(1);
+}
+
+export function getRelativeTime(date: Date) {
+  return dayjs(date).fromNow();
 }

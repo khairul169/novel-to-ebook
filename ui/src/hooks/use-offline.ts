@@ -83,7 +83,9 @@ export async function getOfflineImage(
 
 async function fetchBook(key: string) {
   try {
-    const res = await fetch(API_URL + "/library/get?key=" + key);
+    const res = await fetch(
+      API_URL + "/library/get?key=" + encodeURIComponent(key),
+    );
     if (!res.ok) throw new Error(res.statusText);
 
     const buf = await res.arrayBuffer();

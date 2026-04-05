@@ -1,0 +1,200 @@
+import type { BookRelocate } from "@/app/reader/lib/types";
+import OfflineImage from "@/components/offline-image";
+import { API_URL } from "@/lib/api";
+import { cn, getRelativeTime } from "@/lib/utils";
+import { useEffect, useMemo, useRef } from "react";
+import { Link } from "react-router";
+import { BlurhashCanvas } from "react-blurhash";
+import { BookIcon, ClockIcon, EyeIcon, UserIcon } from "lucide-react";
+import { ReaderIcon } from "@radix-ui/react-icons";
+
+export type LibraryItem = {
+  key: string;
+  location?: BookRelocate;
+  name?: string;
+  metadata?: any;
+  cover?: string | null;
+  coverHash?: string | null;
+  parent?: string | null;
+  isDirectory?: boolean;
+};
+
+export type LibraryView = {
+  mode: "grid" | "list";
+  orderBy: "created" | "modified" | "name" | "readAt";
+  sort: number;
+};
+
+type Props = {
+  items?: LibraryItem[];
+  search?: string | null;
+  baseDir?: string | null;
+  horizontal?: boolean;
+  view?: LibraryView;
+};
+
+const LibraryList = ({ items, search, baseDir, horizontal, view }: Props) => {
+  const scrollRef = useRef<HTMLDivElement>(null!);
+  const { mode = "grid", orderBy = "name", sort = 1 } = view || {};
+
+  useEffect(() => {
+    const el = scrollRef.current;
+    if (!horizontal || !el) return;
+
+    const handleWheel = (e: WheelEvent) => {
+      if (e.deltaY === 0) return;
+
+      e.preventDefault();
+      el.scrollLeft += e.deltaY;
+    };
+
+    el.addEventListener("wheel", handleWheel, { passive: false });
+
+    return () => {
+      el.removeEventListener("wheel", handleWheel);
+    };
+  }, [horizontal]);
+
+  const filtered = useMemo(() => {
+    let res = items || [];
+
+    // filter items
+    if (baseDir !== null) {
+      res = res.filter((i) => i.parent === baseDir);
+    }
+    if (search) {
+      res = res.filter((i) =>
+        i.name?.toLowerCase().includes(search.toLowerCase()),
+      );
+    }
+
+    // sort
+    if (orderBy === "created") {
+      res = res.sort(
+        (a, b) => (a.metadata?.created || 0) - (b.metadata?.created || 0),
+      );
+    } else if (orderBy === "modified") {
+      res = res.sort(
+        (a, b) => (a.metadata?.modified || 0) - (b.metadata?.modified || 0),
+      );
+    } else if (orderBy === "name") {
+      res = res.sort((a, b) => a.name?.localeCompare(b.name || "") || 0);
+    } else if (orderBy === "readAt") {
+      res = res.sort(
+        (a, b) => (a.metadata?.readAt || 0) - (b.metadata?.readAt || 0),
+      );
+    }
+    if (sort === -1) {
+      res = res.reverse();
+    }
+
+    return res;
+  }, [items, search, baseDir, orderBy, sort]);
+
+  return (
+    <div
+      ref={scrollRef}
+      className={cn(
+        "grid grid-cols-[repeat(auto-fill,minmax(180px,1fr))] p-2",
+        horizontal && "overflow-x-auto flex items-stretch",
+        mode === "list" ? "grid-cols-1 md:grid-cols-2 xl:grid-cols-3" : "",
+      )}
+    >
+      {filtered?.map((item) => (
+        <Link
+          key={item.key}
+          to={
+            item.isDirectory
+              ? `/?dir=${item.key}`
+              : `/reader/?book=${encodeURIComponent(item.key)}`
+          }
+          className={cn(
+            "text-foreground p-4 hover:bg-secondary",
+            horizontal &&
+              "shrink-0 min-w-40 w-[calc(100vw/4-8px)] max-w-[180px]",
+            mode === "list"
+              ? "px-0 mx-4 flex items-stretch gap-x-4 border-b"
+              : "",
+          )}
+          title={item.metadata?.title || item.name}
+        >
+          <div
+            className={cn(
+              "aspect-3/4 bg-primary/10 rounded relative overflow-hidden shadow shrink-0",
+              mode === "list" ? "h-16" : "w-full",
+            )}
+          >
+            <div className="w-full h-full flex flex-col items-center justify-center text-center p-4">
+              <p className="text-md line-clamp-3">
+                {item.metadata?.title || item.name}
+              </p>
+              <p className="text-sm mt-2 opacity-50">
+                {item.metadata?.creator}
+              </p>
+            </div>
+
+            {item.coverHash != null && (
+              /* @ts-ignore */
+              <BlurhashCanvas
+                hash={item.coverHash}
+                className="absolute z-1 inset-0 w-full h-full"
+                width={3}
+                height={4}
+              />
+            )}
+
+            <OfflineImage
+              src={item.cover ? API_URL + item.cover : null}
+              alt={item.name}
+              className="absolute z-2 inset-0 w-full h-full object-cover"
+            />
+
+            {item.location?.fraction && (
+              <div className="absolute z-3 bottom-0 left-0 w-full bg-background/20 flex items-center justify-between">
+                <div
+                  className="bg-green-500 h-0.75"
+                  style={{ width: `${item.location.fraction * 100}%` }}
+                />
+              </div>
+            )}
+          </div>
+
+          <div className="flex justify-center items-stretch flex-col">
+            <p
+              className={cn(
+                "line-clamp-2 text-xs font-medium",
+                mode === "list" && "text-sm font-normal",
+              )}
+            >
+              {item.metadata?.title || item.name}
+            </p>
+
+            {mode === "list" ? (
+              <>
+                {item.metadata?.creator ? (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <UserIcon className="shrink-0 size-3" />
+                    <p className="truncate text-xs text-muted-foreground">
+                      {item.metadata?.creator}
+                    </p>
+                  </div>
+                ) : null}
+
+                {item.metadata?.readAt ? (
+                  <div className="flex items-center gap-1 text-muted-foreground">
+                    <EyeIcon className="shrink-0 size-3" />
+                    <p className="flex-1 truncate text-xs">
+                      {getRelativeTime(new Date(item.metadata.readAt))}
+                    </p>
+                  </div>
+                ) : null}
+              </>
+            ) : null}
+          </div>
+        </Link>
+      ))}
+    </div>
+  );
+};
+
+export default LibraryList;

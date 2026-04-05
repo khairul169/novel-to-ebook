@@ -4,10 +4,23 @@ import EPub from "epub";
 import * as blurhash from "blurhash";
 import sharp from "sharp";
 import { pdfToImg } from "pdftoimg-js";
+import db from "../../db";
 
 const supportExt = ["epub", "pdf"];
 
 export async function scanLibrary(paths: string[]) {
+  const readHistories = await db
+    .selectFrom("histories")
+    .select(["key", "date"])
+    .execute()
+    .then((rows) => {
+      const histories: Record<string, number> = {};
+      for (const row of rows) {
+        histories[row.key] = new Date(row.date).getTime();
+      }
+      return histories;
+    });
+
   const files = await Promise.all(
     paths.map(async (p) => {
       const basePath = path.resolve(p);
@@ -36,6 +49,7 @@ export async function scanLibrary(paths: string[]) {
             .replaceAll(".", "")
             .replaceAll("..", "");
           const key = relative.replaceAll("\\", "/");
+          const stat = await fs.stat(fullPath);
 
           let metadata: Record<string, string> = {
             title: entry.name.split(".").slice(0, -1).join("."),
@@ -102,7 +116,12 @@ export async function scanLibrary(paths: string[]) {
             parent,
             fullPath,
             isDirectory: entry.isDirectory(),
-            metadata,
+            metadata: {
+              ...metadata,
+              created: stat.birthtimeMs,
+              modified: stat.mtimeMs,
+              readAt: readHistories[key] || null,
+            },
             cover,
             coverHash,
             getCover,
@@ -110,11 +129,21 @@ export async function scanLibrary(paths: string[]) {
         }),
       );
 
+      // fill directory metadata
       result.forEach((item, idx) => {
         if (!item.isDirectory) return;
+
+        // cover
         result[idx]!.cover =
           result.find((i) => i.parent === item.key && i.cover != null)?.cover ||
           null;
+
+        // read metadata
+        result[idx]!.metadata.readAt =
+          result
+            .filter((i) => i.parent === item.key && i.metadata.readAt)
+            .sort((a, b) => b.metadata.readAt! - a.metadata.readAt!)[0]
+            ?.metadata.readAt || null;
       });
 
       return result;
