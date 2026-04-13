@@ -8,7 +8,13 @@ import db from "../../db";
 
 const supportExt = ["epub", "pdf"];
 
-export async function scanLibrary(paths: string[]) {
+export async function scanLibrary(
+  paths: string[],
+  opt?: { signal?: AbortSignal },
+) {
+  const { signal } = opt || {};
+  signal?.throwIfAborted();
+
   const readHistories = await db
     .selectFrom("histories")
     .select(["key", "date"])
@@ -21,8 +27,11 @@ export async function scanLibrary(paths: string[]) {
       return histories;
     });
 
+  signal?.throwIfAborted();
+
   const files = await Promise.all(
     paths.map(async (p) => {
+      signal?.throwIfAborted();
       const basePath = path.resolve(p);
 
       let entries = await fs.readdir(p, {
@@ -31,6 +40,8 @@ export async function scanLibrary(paths: string[]) {
       });
 
       entries = entries.filter((entry) => {
+        signal?.throwIfAborted();
+
         if (entry.isDirectory()) return true;
         if (entry.isFile()) {
           const ext = entry.name.split(".").pop();
@@ -41,6 +52,8 @@ export async function scanLibrary(paths: string[]) {
 
       const result = await Promise.all(
         entries.map(async (entry: any) => {
+          signal?.throwIfAborted();
+
           const fullPath = path.join(entry.path ?? p, entry.name);
           const relative = path.relative(p, fullPath);
           const parent = path
@@ -129,9 +142,11 @@ export async function scanLibrary(paths: string[]) {
         }),
       );
 
+      signal?.throwIfAborted();
+
       // fill directory metadata
       result.forEach((item, idx) => {
-        if (!item.isDirectory) return;
+        if (!item.isDirectory || signal?.aborted) return;
 
         // cover
         result[idx]!.cover =

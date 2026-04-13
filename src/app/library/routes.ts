@@ -9,7 +9,7 @@ import {
   LibraryItemSchema,
 } from "./schema";
 import { HTTPError } from "../../lib/error";
-import { getLibrary } from "./context";
+import { getLibrary, rescanLibrary } from "./context";
 import z from "zod";
 import db from "../../db";
 
@@ -24,6 +24,19 @@ router.get(
   }),
   async (c) => {
     return c.var.res(getLibrary());
+  },
+);
+
+router.post(
+  "/rescan",
+  openApi({
+    tags: ["Library"],
+    summary: "Rescan library",
+    responses: { 204: { description: "No content" } },
+  }),
+  async (c) => {
+    await rescanLibrary();
+    return c.var.res(204, null);
   },
 );
 

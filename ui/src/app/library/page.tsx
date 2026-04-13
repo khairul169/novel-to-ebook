@@ -4,13 +4,18 @@ import {
   InputGroupAddon,
   InputGroupInput,
 } from "@/components/ui/input-group";
-import { ArrowLeftIcon, PlusIcon, SearchIcon } from "lucide-react";
+import {
+  ArrowLeftIcon,
+  PlusIcon,
+  RefreshCwIcon,
+  SearchIcon,
+} from "lucide-react";
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router";
 import { getLibraryTitle } from "./lib/utils";
 import { cn } from "@/lib/utils";
 import { useOfflineApiQuery } from "@/hooks/use-offline";
-import { useHistories } from "./lib/hooks";
+import { useHistories, useRescanLibrary } from "./lib/hooks";
 import LibraryList, { type LibraryView } from "./components/library-list";
 import { usePersistedState } from "@/hooks/use-persisted-state";
 import LibraryViewMenu from "./components/library-view-menu";
@@ -29,6 +34,7 @@ export default function LibraryPage() {
     },
   );
   const baseDir = searchParams.get("dir") || "";
+  const rescan = useRescanLibrary();
 
   return (
     <div className="min-h-screen bg-background">
@@ -84,6 +90,14 @@ export default function LibraryPage() {
           view={libraryView}
           onChange={(e) => setLibraryView({ ...libraryView, ...e })}
         />
+        <Button
+          variant="outline"
+          size="icon"
+          onClick={() => rescan.mutate(null as never)}
+          disabled={rescan.isPending}
+        >
+          <RefreshCwIcon className={rescan.isPending ? "animate-spin" : ""} />
+        </Button>
       </div>
 
       <LibraryList

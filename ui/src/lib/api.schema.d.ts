@@ -761,7 +761,7 @@ export interface paths {
                              *     }
                              */
                             metadata?: {
-                                [key: string]: string;
+                                [key: string]: unknown;
                             };
                         }[];
                     };
@@ -770,6 +770,40 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/library/rescan": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /** Rescan library */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path?: never;
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description No content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content?: never;
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -822,7 +856,7 @@ export interface paths {
                              *     }
                              */
                             metadata?: {
-                                [key: string]: string;
+                                [key: string]: unknown;
                             };
                         };
                     };

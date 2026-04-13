@@ -10,7 +10,7 @@ export const LibraryItemSchema = z.object({
   coverHash: z.string().nullish(),
   isDirectory: z.boolean(),
   metadata: z
-    .record(z.string(), z.string())
+    .record(z.string(), z.any())
     .optional()
     .meta({
       example: {
